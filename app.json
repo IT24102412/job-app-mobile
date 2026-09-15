@@ -1,17 +1,11 @@
 {
   "expo": {
-    "name": "mobile",
+    "name": "Job Tracker",
     "slug": "mobile",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
-    },
     "ios": {
       "supportsTablet": true
     },
@@ -20,10 +14,19 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "package": "com.jobapp2026.mobile"
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-status-bar",
+      "expo-sharing"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "40a7e7e1-cc45-498a-8e70-5f8db1f3bbf8"
+      }
     }
   }
 }
