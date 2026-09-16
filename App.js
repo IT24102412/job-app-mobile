@@ -12,6 +12,7 @@ import FilteredJobsScreen from "./src/screens/FilteredJobsScreen";
 import ActivityScreen from "./src/screens/ActivityScreen";
 import DailyReportScreen from "./src/screens/DailyReportScreen";
 import ChangePasswordScreen from "./src/screens/ChangePasswordScreen";
+import ForgotPasswordScreen from "./src/screens/ForgotPasswordScreen";
 import { colors } from "./src/theme";
 
 const Stack = createNativeStackNavigator();
@@ -33,6 +34,11 @@ export default function App() {
           name="Login"
           component={LoginScreen}
           options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="ForgotPassword"
+          component={ForgotPasswordScreen}
+          options={{ title: "Reset Password" }}
         />
         <Stack.Screen
           name="Dashboard"

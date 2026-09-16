@@ -49,14 +49,6 @@ export default function LoginScreen({ navigation }) {
     }
   };
 
-  const handleForgotPassword = () => {
-    Alert.alert(
-      "Forgot Password?",
-      "Please contact your administrator. They can reset your password for you, and you'll be able to set your own new password once you log back in.",
-      [{ text: "OK" }]
-    );
-  };
-
   return (
     <ImageBackground
       source={require("../../assets/generator-bg.jpg")}
@@ -111,7 +103,10 @@ export default function LoginScreen({ navigation }) {
             </TouchableOpacity>
           </View>
 
-          <TouchableOpacity onPress={handleForgotPassword} style={styles.forgotPasswordLink}>
+          <TouchableOpacity
+            onPress={() => navigation.navigate("ForgotPassword")}
+            style={styles.forgotPasswordLink}
+          >
             <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
           </TouchableOpacity>
 
