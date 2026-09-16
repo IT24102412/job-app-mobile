@@ -36,8 +36,6 @@ export default function LoginScreen({ navigation }) {
       const { access_token } = response.data;
       await saveToken(access_token);
 
-      // Register this device for real push notifications (job assignments, closures, etc.)
-      // Runs in the background — doesn't block or fail the login if it has trouble.
       registerForPushNotificationsAsync().catch((err) =>
         console.log("Push registration failed:", err.message)
       );
@@ -49,6 +47,14 @@ export default function LoginScreen({ navigation }) {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleForgotPassword = () => {
+    Alert.alert(
+      "Forgot Password?",
+      "Please contact your administrator. They can reset your password for you, and you'll be able to set your own new password once you log back in.",
+      [{ text: "OK" }]
+    );
   };
 
   return (
@@ -104,6 +110,10 @@ export default function LoginScreen({ navigation }) {
               />
             </TouchableOpacity>
           </View>
+
+          <TouchableOpacity onPress={handleForgotPassword} style={styles.forgotPasswordLink}>
+            <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+          </TouchableOpacity>
 
           <TouchableOpacity
             style={[styles.button, loading && styles.buttonDisabled]}
@@ -188,6 +198,8 @@ const styles = StyleSheet.create({
     fontSize: fontSize.md,
     color: colors.textPrimary,
   },
+  forgotPasswordLink: { alignSelf: "flex-end", marginTop: spacing.sm },
+  forgotPasswordText: { color: colors.primary, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
   button: {
     backgroundColor: colors.primary,
     padding: spacing.lg,

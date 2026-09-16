@@ -107,6 +107,13 @@ export default function DashboardScreen({ navigation }) {
       <View style={styles.roleBadge}>
         <Text style={styles.roleBadgeText}>{ROLE_LABELS[role] || role}</Text>
       </View>
+      <TouchableOpacity
+        style={styles.settingsButton}
+        onPress={() => navigation.navigate("ChangePassword")}
+        activeOpacity={0.7}
+      >
+        <Ionicons name="settings-outline" size={22} color={colors.textSecondary} />
+      </TouchableOpacity>
     </View>
   );
 
@@ -371,8 +378,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: 6,
     borderRadius: radius.pill,
+    marginRight: spacing.sm,
   },
   roleBadgeText: { color: colors.primaryDark, fontSize: fontSize.xs, fontWeight: fontWeight.bold },
+  settingsButton: { padding: 4 },
   sectionTitle: {
     fontSize: fontSize.lg,
     fontWeight: fontWeight.bold,

@@ -11,6 +11,7 @@ import ReportsScreen from "./src/screens/ReportsScreen";
 import FilteredJobsScreen from "./src/screens/FilteredJobsScreen";
 import ActivityScreen from "./src/screens/ActivityScreen";
 import DailyReportScreen from "./src/screens/DailyReportScreen";
+import ChangePasswordScreen from "./src/screens/ChangePasswordScreen";
 import { colors } from "./src/theme";
 
 const Stack = createNativeStackNavigator();
@@ -77,6 +78,11 @@ export default function App() {
           name="DailyReport"
           component={DailyReportScreen}
           options={{ title: "Daily Technician Report" }}
+        />
+        <Stack.Screen
+          name="ChangePassword"
+          component={ChangePasswordScreen}
+          options={{ title: "Change Password" }}
         />
       </Stack.Navigator>
     </NavigationContainer>
