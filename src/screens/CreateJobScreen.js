@@ -14,6 +14,7 @@ import {
 import { Picker } from "@react-native-picker/picker";
 import { Ionicons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
+import * as Location from "expo-location";
 import api from "../api/client";
 import { getCurrentUserId } from "../api/auth";
 import { colors, spacing, radius, fontSize, fontWeight, shadow } from "../theme";
@@ -39,6 +40,16 @@ export default function CreateJobScreen({ navigation }) {
 
   const [customerPickerVisible, setCustomerPickerVisible] = useState(false);
   const [customerSearch, setCustomerSearch] = useState("");
+
+  const [addCustomerVisible, setAddCustomerVisible] = useState(false);
+  const [newCustomerName, setNewCustomerName] = useState("");
+  const [newCustomerPhone, setNewCustomerPhone] = useState("");
+  const [newCustomerAddress, setNewCustomerAddress] = useState("");
+  const [newCustomerCoords, setNewCustomerCoords] = useState(null);
+  const [foundLocationLabel, setFoundLocationLabel] = useState(null);
+  const [geocoding, setGeocoding] = useState(false);
+  const [gettingLocation, setGettingLocation] = useState(false);
+  const [savingCustomer, setSavingCustomer] = useState(false);
 
   useEffect(() => {
     loadFormData();
@@ -95,6 +106,109 @@ export default function CreateJobScreen({ navigation }) {
 
     if (result.canceled) return;
     setSrAttachment(result.assets[0]);
+  };
+
+  const openAddCustomer = () => {
+    setNewCustomerName("");
+    setNewCustomerPhone("");
+    setNewCustomerAddress("");
+    setNewCustomerCoords(null);
+    setFoundLocationLabel(null);
+    setAddCustomerVisible(true);
+  };
+
+  const handleGeocodeAddress = async () => {
+    if (!newCustomerAddress.trim() || newCustomerAddress.trim().length < 5) {
+      Alert.alert("Address needed", "Please type the customer's address first.");
+      return;
+    }
+
+    setGeocoding(true);
+    setFoundLocationLabel(null);
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(
+          newCustomerAddress.trim()
+        )}&format=json&limit=1&countrycodes=lk`,
+        { headers: { "User-Agent": "JobTrackerApp/1.0" } }
+      );
+      const results = await response.json();
+
+      if (results.length === 0) {
+        Alert.alert(
+          "Location not found",
+          "Couldn't find this address automatically. Try a more specific address (include the town/city name), or use \"Use My Current Location\" if you're at the site."
+        );
+        return;
+      }
+
+      const match = results[0];
+      setNewCustomerCoords({ latitude: parseFloat(match.lat), longitude: parseFloat(match.lon) });
+      setFoundLocationLabel(match.display_name);
+    } catch (error) {
+      Alert.alert("Error", "Could not look up this address right now. Please try again.");
+    } finally {
+      setGeocoding(false);
+    }
+  };
+
+  const handleUseCurrentLocation = async () => {
+    setGettingLocation(true);
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert("Permission needed", "Location permission is required to set this customer's location.");
+        return;
+      }
+      const loc = await Location.getCurrentPositionAsync({});
+      setNewCustomerCoords({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
+      setFoundLocationLabel("Your current location");
+    } catch (error) {
+      Alert.alert("Error", "Could not get your current location. Please try again.");
+    } finally {
+      setGettingLocation(false);
+    }
+  };
+
+  const handleSaveNewCustomer = async () => {
+    if (!newCustomerName.trim()) {
+      Alert.alert("Missing info", "Please enter the customer's name.");
+      return;
+    }
+    if (!newCustomerAddress.trim() || newCustomerAddress.trim().length < 5) {
+      Alert.alert("Missing info", "Please enter an address (at least 5 characters).");
+      return;
+    }
+    if (!newCustomerCoords) {
+      Alert.alert(
+        "Location required",
+        "Please find the location from the address, or use your current location if you're at the site."
+      );
+      return;
+    }
+
+    setSavingCustomer(true);
+    try {
+      const response = await api.post("/customers/", {
+        name: newCustomerName.trim(),
+        phone: newCustomerPhone.trim() || null,
+        address: newCustomerAddress.trim(),
+        latitude: newCustomerCoords.latitude,
+        longitude: newCustomerCoords.longitude,
+      });
+
+      const newCustomer = response.data;
+      setCustomers((prev) => [...prev, newCustomer]);
+      setCustomerId(newCustomer.id);
+      setAddCustomerVisible(false);
+      setCustomerPickerVisible(false);
+      Alert.alert("Customer added", `${newCustomer.name} has been added and selected for this job.`);
+    } catch (error) {
+      const detail = error.response?.data?.detail || "Could not add this customer.";
+      Alert.alert("Failed", typeof detail === "string" ? detail : JSON.stringify(detail));
+    } finally {
+      setSavingCustomer(false);
+    }
   };
 
   const handleCreate = async () => {
@@ -318,6 +432,11 @@ export default function CreateJobScreen({ navigation }) {
             <View style={styles.modalHandle} />
             <Text style={styles.modalTitle}>Select Customer</Text>
 
+            <TouchableOpacity style={styles.addCustomerButton} onPress={openAddCustomer} activeOpacity={0.7}>
+              <Ionicons name="add-circle" size={20} color={colors.primary} />
+              <Text style={styles.addCustomerButtonText}>Add New Customer</Text>
+            </TouchableOpacity>
+
             <View style={styles.searchBox}>
               <Ionicons name="search" size={18} color={colors.textMuted} />
               <TextInput
@@ -366,6 +485,101 @@ export default function CreateJobScreen({ navigation }) {
                 setCustomerPickerVisible(false);
                 setCustomerSearch("");
               }}
+            >
+              <Text style={styles.modalCloseText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={addCustomerVisible} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalBox}>
+            <View style={styles.modalHandle} />
+            <Text style={styles.modalTitle}>Add New Customer</Text>
+
+            <ScrollView keyboardShouldPersistTaps="handled">
+              <Text style={styles.label}>Name</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Customer or company name"
+                placeholderTextColor={colors.textMuted}
+                value={newCustomerName}
+                onChangeText={setNewCustomerName}
+              />
+
+              <Text style={styles.label}>Phone (optional)</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="07XXXXXXXX"
+                placeholderTextColor={colors.textMuted}
+                value={newCustomerPhone}
+                onChangeText={setNewCustomerPhone}
+                keyboardType="phone-pad"
+              />
+
+              <Text style={styles.label}>Address</Text>
+              <TextInput
+                style={styles.remarksInput}
+                placeholder="Full site address - be specific (include town/city)"
+                placeholderTextColor={colors.textMuted}
+                value={newCustomerAddress}
+                onChangeText={(text) => {
+                  setNewCustomerAddress(text);
+                  setNewCustomerCoords(null);
+                  setFoundLocationLabel(null);
+                }}
+                multiline
+                numberOfLines={2}
+              />
+
+              <TouchableOpacity
+                style={styles.geocodeButton}
+                onPress={handleGeocodeAddress}
+                disabled={geocoding}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="search" size={18} color={colors.surface} />
+                <Text style={styles.geocodeButtonText}>
+                  {geocoding ? "Finding location..." : "Find Location from Address"}
+                </Text>
+              </TouchableOpacity>
+
+              {foundLocationLabel && (
+                <View style={styles.foundLocationBox}>
+                  <Ionicons name="checkmark-circle" size={18} color={colors.success} />
+                  <Text style={styles.foundLocationText}>{foundLocationLabel}</Text>
+                </View>
+              )}
+
+              <Text style={styles.orText}>— or, if you're physically at the site —</Text>
+
+              <TouchableOpacity
+                style={styles.locationButton}
+                onPress={handleUseCurrentLocation}
+                disabled={gettingLocation}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="locate" size={20} color={colors.primary} />
+                <Text style={styles.locationButtonText}>
+                  {gettingLocation ? "Getting location..." : "Use My Current Location Instead"}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.button}
+                onPress={handleSaveNewCustomer}
+                disabled={savingCustomer}
+              >
+                <Text style={styles.buttonText}>
+                  {savingCustomer ? "Saving..." : "Save Customer"}
+                </Text>
+              </TouchableOpacity>
+            </ScrollView>
+
+            <TouchableOpacity
+              style={styles.modalCloseButton}
+              onPress={() => setAddCustomerVisible(false)}
             >
               <Text style={styles.modalCloseText}>Cancel</Text>
             </TouchableOpacity>
@@ -494,6 +708,16 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   modalTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, marginBottom: spacing.md, color: colors.textPrimary },
+  addCustomerButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    backgroundColor: colors.primaryLight,
+    padding: spacing.md,
+    borderRadius: radius.md,
+    marginBottom: spacing.md,
+  },
+  addCustomerButtonText: { color: colors.primaryDark, fontWeight: fontWeight.bold, fontSize: fontSize.base },
   searchBox: {
     flexDirection: "row",
     alignItems: "center",
@@ -521,4 +745,37 @@ const styles = StyleSheet.create({
   emptyText: { textAlign: "center", color: colors.textMuted, marginTop: 30 },
   modalCloseButton: { marginTop: spacing.md, padding: spacing.md, alignItems: "center" },
   modalCloseText: { color: colors.danger, fontWeight: fontWeight.semibold },
+  geocodeButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.sm,
+    backgroundColor: colors.primary,
+    padding: spacing.md,
+    borderRadius: radius.sm,
+    marginTop: spacing.sm,
+  },
+  geocodeButtonText: { color: colors.surface, fontWeight: fontWeight.bold },
+  foundLocationBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    backgroundColor: colors.successLight,
+    padding: spacing.md,
+    borderRadius: radius.sm,
+    marginTop: spacing.sm,
+  },
+  foundLocationText: { color: colors.successDark, fontSize: fontSize.sm, flex: 1 },
+  orText: { textAlign: "center", color: colors.textMuted, fontSize: fontSize.xs, marginVertical: spacing.md },
+  locationButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    borderRadius: radius.sm,
+    padding: spacing.md,
+  },
+  locationButtonText: { color: colors.primary, fontWeight: fontWeight.semibold },
 });
