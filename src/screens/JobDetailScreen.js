@@ -63,6 +63,7 @@ export default function JobDetailScreen({ route, navigation }) {
   const [jobSummary, setJobSummary] = useState(null);
   const [assignedTechs, setAssignedTechs] = useState([]);
   const [downloadingAttachment, setDownloadingAttachment] = useState(false);
+  const [downloadingJobsheet, setDownloadingJobsheet] = useState(false);
   const trackingInterval = useRef(null);
   const locationsRefreshInterval = useRef(null);
   const clockInterval = useRef(null);
@@ -379,6 +380,46 @@ export default function JobDetailScreen({ route, navigation }) {
     }
   };
 
+  const handleViewJobsheet = async () => {
+    setDownloadingJobsheet(true);
+    try {
+      const filename = `jobsheet_${job.job_number}.pdf`;
+
+      if (Platform.OS === "web") {
+        const response = await api.get(`/jobs/${jobId}/jobsheet`, { responseType: "blob" });
+        const blob = new Blob([response.data], { type: "application/pdf" });
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      } else {
+        const response = await api.get(`/jobs/${jobId}/jobsheet`, { responseType: "arraybuffer" });
+        const base64Data = arrayBufferToBase64(response.data);
+        const fileUri = FileSystem.documentDirectory + filename;
+
+        await FileSystem.writeAsStringAsync(fileUri, base64Data, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+
+        const canShare = await Sharing.isAvailableAsync();
+        if (canShare) {
+          await Sharing.shareAsync(fileUri, { mimeType: "application/pdf", dialogTitle: "Job Sheet" });
+        } else {
+          Alert.alert("Saved", `File saved to: ${fileUri}`);
+        }
+      }
+    } catch (error) {
+      console.log("Failed to load job sheet:", error.message);
+      Alert.alert("Error", "Could not load the job sheet.");
+    } finally {
+      setDownloadingJobsheet(false);
+    }
+  };
+
   if (loading || !job) {
     return (
       <View style={styles.centered}>
@@ -600,6 +641,20 @@ export default function JobDetailScreen({ route, navigation }) {
               {downloadingAttachment ? "Loading..." : "View SR Attachment"}
             </Text>
             <Ionicons name="download-outline" size={16} color={colors.primary} />
+          </TouchableOpacity>
+        )}
+        {job.has_jobsheet && (
+          <TouchableOpacity
+            style={styles.jobsheetRow}
+            onPress={handleViewJobsheet}
+            disabled={downloadingJobsheet}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="document-text" size={18} color={colors.accentTeal} />
+            <Text style={styles.jobsheetRowText}>
+              {downloadingJobsheet ? "Loading..." : "View Job Sheet"}
+            </Text>
+            <Ionicons name="download-outline" size={16} color={colors.accentTeal} />
           </TouchableOpacity>
         )}
         {customer && (
@@ -966,6 +1021,16 @@ const styles = StyleSheet.create({
     marginVertical: spacing.sm,
   },
   attachmentRowText: { color: colors.primaryDark, fontWeight: fontWeight.bold, fontSize: fontSize.sm, flex: 1 },
+  jobsheetRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    backgroundColor: colors.accentTealLight,
+    padding: spacing.md,
+    borderRadius: radius.md,
+    marginVertical: spacing.sm,
+  },
+  jobsheetRowText: { color: colors.accentTeal, fontWeight: fontWeight.bold, fontSize: fontSize.sm, flex: 1 },
   assignedTechsBox: {
     paddingVertical: spacing.sm,
   },
