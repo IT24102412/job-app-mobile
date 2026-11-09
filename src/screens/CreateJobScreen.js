@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Modal,
   FlatList,
+  Platform,
 } from "react-native";
 import { Picker } from "@react-native-picker/picker";
 import { Ionicons } from "@expo/vector-icons";
@@ -220,14 +221,6 @@ export default function CreateJobScreen({ navigation }) {
       Alert.alert("Missing info", "Please select a regional center.");
       return;
     }
-    if (requestType === "SR" && !srAttachment) {
-      Alert.alert(
-        "SR Attachment required",
-        "Since this is an SR request, please attach the Service Request document before creating the job."
-      );
-      return;
-    }
-
     const salesExecutiveId = await getCurrentUserId();
 
     setLoading(true);
@@ -248,14 +241,21 @@ export default function CreateJobScreen({ navigation }) {
       if (srAttachment) {
         try {
           const formData = new FormData();
-          formData.append("file", {
-            uri: srAttachment.uri,
-            name: srAttachment.name,
-            type: srAttachment.mimeType || "application/octet-stream",
-          });
-          await api.post(`/jobs/${newJobId}/upload-attachment`, formData, {
-            headers: { "Content-Type": "multipart/form-data" },
-          });
+          if (Platform.OS === "web") {
+            // Browsers need a real File/Blob, not the { uri, name, type } object used on phones
+            const blob = srAttachment.file || (await (await fetch(srAttachment.uri)).blob());
+            formData.append("file", blob, srAttachment.name);
+            await api.post(`/jobs/${newJobId}/upload-attachment`, formData);
+          } else {
+            formData.append("file", {
+              uri: srAttachment.uri,
+              name: srAttachment.name,
+              type: srAttachment.mimeType || "application/octet-stream",
+            });
+            await api.post(`/jobs/${newJobId}/upload-attachment`, formData, {
+              headers: { "Content-Type": "multipart/form-data" },
+            });
+          }
         } catch (attachError) {
           console.log("Attachment upload failed:", attachError.message);
           Alert.alert(
@@ -345,34 +345,24 @@ export default function CreateJobScreen({ navigation }) {
       />
       <Text style={styles.charCount}>{remarks.length}/500</Text>
 
-      <Text style={styles.label}>
-        SR Attachment {requestType === "SR" ? "(required)" : "(optional)"}
-      </Text>
+      <Text style={styles.label}>SR Attachment (optional)</Text>
       <TouchableOpacity
-        style={[
-          styles.attachmentButton,
-          requestType === "SR" && !srAttachment && styles.attachmentButtonRequired,
-        ]}
+        style={styles.attachmentButton}
         onPress={handlePickAttachment}
         activeOpacity={0.7}
       >
         <Ionicons
           name={srAttachment ? "document-attach" : "attach-outline"}
           size={20}
-          color={srAttachment ? colors.success : requestType === "SR" ? colors.danger : colors.textSecondary}
+          color={srAttachment ? colors.success : colors.textSecondary}
         />
         <Text
           style={[
             styles.attachmentButtonText,
             srAttachment && styles.attachmentButtonTextSelected,
-            requestType === "SR" && !srAttachment && styles.attachmentButtonTextRequired,
           ]}
         >
-          {srAttachment
-            ? srAttachment.name
-            : requestType === "SR"
-            ? "Attach Service Request document (required)"
-            : "Attach Service Request (PDF or image)"}
+          {srAttachment ? srAttachment.name : "Attach Service Request (PDF or image) - optional"}
         </Text>
         {srAttachment && (
           <TouchableOpacity onPress={() => setSrAttachment(null)}>
