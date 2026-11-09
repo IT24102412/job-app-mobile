@@ -33,6 +33,23 @@ function formatElapsed(totalSeconds) {
   return `${pad(h)}:${pad(m)}:${pad(s)}`;
 }
 
+function extensionFromMime(contentType) {
+  const ct = (contentType || "").toLowerCase();
+  if (ct.includes("pdf")) return "pdf";
+  if (ct.includes("png")) return "png";
+  if (ct.includes("jpeg") || ct.includes("jpg")) return "jpg";
+  if (ct.includes("heic")) return "heic";
+  if (ct.includes("wordprocessingml")) return "docx";
+  if (ct.includes("msword")) return "doc";
+  if (ct.includes("spreadsheetml")) return "xlsx";
+  if (ct.includes("ms-excel")) return "xls";
+  if (ct.includes("presentationml")) return "pptx";
+  if (ct.includes("zip")) return "zip";
+  if (ct.includes("csv")) return "csv";
+  if (ct.includes("plain")) return "txt";
+  return "bin";
+}
+
 function arrayBufferToBase64(buffer) {
   let binary = "";
   const bytes = new Uint8Array(buffer);
@@ -259,7 +276,7 @@ export default function JobDetailScreen({ route, navigation }) {
 
   const handleUploadJobsheet = async () => {
     const result = await DocumentPicker.getDocumentAsync({
-      type: "application/pdf",
+      type: "*/*",
       copyToCacheDirectory: true,
     });
 
@@ -269,15 +286,23 @@ export default function JobDetailScreen({ route, navigation }) {
     setActionLoading(true);
     try {
       const formData = new FormData();
-      formData.append("file", {
-        uri: file.uri,
-        name: file.name,
-        type: "application/pdf",
-      });
+      const mime = file.mimeType || "application/octet-stream";
 
-      await api.post(`/jobs/${jobId}/upload-jobsheet`, formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      if (Platform.OS === "web") {
+        // Browsers need a real File/Blob, not the { uri, name, type } object used on phones
+        const blob = file.file || (await (await fetch(file.uri)).blob());
+        formData.append("file", blob, file.name);
+        await api.post(`/jobs/${jobId}/upload-jobsheet`, formData);
+      } else {
+        formData.append("file", {
+          uri: file.uri,
+          name: file.name,
+          type: mime,
+        });
+        await api.post(`/jobs/${jobId}/upload-jobsheet`, formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+      }
 
       Alert.alert("Success", "Job sheet uploaded. Job is now closed.");
       loadJob();
@@ -342,7 +367,7 @@ export default function JobDetailScreen({ route, navigation }) {
       if (Platform.OS === "web") {
         const response = await api.get(`/jobs/${jobId}/attachment`, { responseType: "blob" });
         const contentType = response.headers["content-type"] || "application/octet-stream";
-        const extension = contentType.includes("pdf") ? "pdf" : contentType.includes("png") ? "png" : "jpg";
+        const extension = extensionFromMime(contentType);
         const filename = `sr_attachment_${job.job_number}.${extension}`;
         const blob = new Blob([response.data], { type: contentType });
         const url = window.URL.createObjectURL(blob);
@@ -356,7 +381,7 @@ export default function JobDetailScreen({ route, navigation }) {
       } else {
         const response = await api.get(`/jobs/${jobId}/attachment`, { responseType: "arraybuffer" });
         const contentType = response.headers["content-type"] || "application/octet-stream";
-        const extension = contentType.includes("pdf") ? "pdf" : contentType.includes("png") ? "png" : "jpg";
+        const extension = extensionFromMime(contentType);
         const filename = `sr_attachment_${job.job_number}.${extension}`;
         const base64Data = arrayBufferToBase64(response.data);
         const fileUri = FileSystem.documentDirectory + filename;
@@ -383,11 +408,11 @@ export default function JobDetailScreen({ route, navigation }) {
   const handleViewJobsheet = async () => {
     setDownloadingJobsheet(true);
     try {
-      const filename = `jobsheet_${job.job_number}.pdf`;
-
       if (Platform.OS === "web") {
         const response = await api.get(`/jobs/${jobId}/jobsheet`, { responseType: "blob" });
-        const blob = new Blob([response.data], { type: "application/pdf" });
+        const contentType = response.headers["content-type"] || "application/octet-stream";
+        const filename = `jobsheet_${job.job_number}.${extensionFromMime(contentType)}`;
+        const blob = new Blob([response.data], { type: contentType });
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.href = url;
@@ -398,6 +423,8 @@ export default function JobDetailScreen({ route, navigation }) {
         window.URL.revokeObjectURL(url);
       } else {
         const response = await api.get(`/jobs/${jobId}/jobsheet`, { responseType: "arraybuffer" });
+        const contentType = response.headers["content-type"] || "application/octet-stream";
+        const filename = `jobsheet_${job.job_number}.${extensionFromMime(contentType)}`;
         const base64Data = arrayBufferToBase64(response.data);
         const fileUri = FileSystem.documentDirectory + filename;
 
@@ -407,7 +434,7 @@ export default function JobDetailScreen({ route, navigation }) {
 
         const canShare = await Sharing.isAvailableAsync();
         if (canShare) {
-          await Sharing.shareAsync(fileUri, { mimeType: "application/pdf", dialogTitle: "Job Sheet" });
+          await Sharing.shareAsync(fileUri, { mimeType: contentType, dialogTitle: "Job Sheet" });
         } else {
           Alert.alert("Saved", `File saved to: ${fileUri}`);
         }
@@ -822,7 +849,7 @@ export default function JobDetailScreen({ route, navigation }) {
         >
           <Ionicons name="document-attach-outline" size={18} color={colors.surface} />
           <Text style={styles.actionButtonText}>
-            {actionLoading ? "Uploading..." : "Upload Job Sheet (PDF)"}
+            {actionLoading ? "Uploading..." : "Upload Job Sheet"}
           </Text>
         </TouchableOpacity>
       )}
@@ -931,7 +958,7 @@ export default function JobDetailScreen({ route, navigation }) {
             <View style={styles.modalHandle} />
             <Text style={styles.modalTitle}>Close Without Job Sheet</Text>
             <Text style={styles.modalSubtitle}>
-              This closes the job directly without requiring the technician to upload a PDF.
+              This closes the job directly without requiring the technician to upload a job sheet.
               Please explain why.
             </Text>
             <TextInput
