@@ -459,17 +459,22 @@ export default function JobDetailScreen({ route, navigation }) {
   const canCancel = canManage && (job.status === "created" || job.status === "assigned");
   const canForceClose = canManage && (job.status === "assigned" || job.status === "started");
 
+  const jobIsFinished = job.status === "closed" || job.status === "cancelled";
+
   const myPersonalStatus =
-    role === "technician" && myAssignment
+    role === "technician" && myAssignment && !jobIsFinished
       ? myAssignment.started_at
         ? "started"
         : "assigned"
       : job.status;
   const statusStyle = statusColors[myPersonalStatus] || statusColors.created;
 
+  // Once a job is closed, timers stop at the closing time instead of keeping the last tick
+  const endMs = job.closed_at ? new Date(job.closed_at + "Z").getTime() : now;
+
   const myElapsedSeconds =
     role === "technician" && myAssignment?.started_at
-      ? Math.max(0, Math.floor((now - new Date(myAssignment.started_at + "Z").getTime()) / 1000))
+      ? Math.max(0, Math.floor((endMs - new Date(myAssignment.started_at + "Z").getTime()) / 1000))
       : 0;
 
   const canIStart =
@@ -704,7 +709,7 @@ export default function JobDetailScreen({ route, navigation }) {
             <View style={styles.assignedTechsList}>
               {assignedTechs.map((t) => {
                 const theirElapsed = t.started_at
-                  ? Math.max(0, Math.floor((now - new Date(t.started_at + "Z").getTime()) / 1000))
+                  ? Math.max(0, Math.floor((endMs - new Date(t.started_at + "Z").getTime()) / 1000))
                   : null;
                 return (
                   <View key={t.id} style={styles.assignedTechChip}>
@@ -747,7 +752,9 @@ export default function JobDetailScreen({ route, navigation }) {
         <View style={styles.stopwatchBox}>
           <Ionicons name="stopwatch-outline" size={22} color={colors.surface} />
           <Text style={styles.stopwatchText}>{formatElapsed(myElapsedSeconds)}</Text>
-          <Text style={styles.stopwatchLabel}>your elapsed time</Text>
+          <Text style={styles.stopwatchLabel}>
+            {job.status === "closed" ? "your total time" : "your elapsed time"}
+          </Text>
         </View>
       )}
 
