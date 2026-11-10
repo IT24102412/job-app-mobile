@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -10,68 +10,46 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
-  Animated,
-  PanResponder,
-  Dimensions,
+  Alert,
 } from "react-native";
 import { MaterialCommunityIcons, Ionicons } from "@expo/vector-icons";
+import {
+  ExpoSpeechRecognitionModule,
+  useSpeechRecognitionEvent,
+} from "expo-speech-recognition";
 import { getBotResponse } from "../chatbot";
 import { colors, spacing, radius, fontSize, fontWeight, shadow } from "../theme";
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
-const FAB_SIZE = 72;
+const LANGUAGES = [
+  { code: "en-US", label: "EN" },
+  { code: "si-LK", label: "සිං" },
+  { code: "ta-LK", label: "தமி" },
+];
+
+// Browser speech recognition (laptop / web version)
+const getWebRecognition = () => {
+  if (Platform.OS !== "web" || typeof window === "undefined") return null;
+  return window.SpeechRecognition || window.webkitSpeechRecognition || null;
+};
 
 export default function ChatBot() {
   const [visible, setVisible] = useState(false);
   const [messages, setMessages] = useState([
-    { id: "welcome", from: "bot", text: "Hey! Ask me about your jobs, notifications, or how to use the app." },
+    { id: "welcome", from: "bot", text: "Hey! Ask me about your jobs, notifications, or how to use the app. You can tap the mic and speak." },
   ]);
   const [input, setInput] = useState("");
   const [thinking, setThinking] = useState(false);
+  const [listening, setListening] = useState(false);
+  const [langIndex, setLangIndex] = useState(0);
   const listRef = useRef(null);
+  const webRecRef = useRef(null);
+  const lastTranscriptRef = useRef("");
+  const sendRef = useRef(null);
 
-  const pan = useRef(
-    new Animated.ValueXY({
-      x: SCREEN_WIDTH - FAB_SIZE - 20,
-      y: SCREEN_HEIGHT - FAB_SIZE - 120,
-    })
-  ).current;
-  const wasDragged = useRef(false);
+  const lang = LANGUAGES[langIndex];
 
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: (evt, gestureState) =>
-        Math.abs(gestureState.dx) > 4 || Math.abs(gestureState.dy) > 4,
-      onPanResponderGrant: () => {
-        wasDragged.current = false;
-        pan.setOffset({ x: pan.x._value, y: pan.y._value });
-        pan.setValue({ x: 0, y: 0 });
-      },
-      onPanResponderMove: (evt, gestureState) => {
-        if (Math.abs(gestureState.dx) > 4 || Math.abs(gestureState.dy) > 4) {
-          wasDragged.current = true;
-        }
-        Animated.event([null, { dx: pan.x, dy: pan.y }], { useNativeDriver: false })(
-          evt,
-          gestureState
-        );
-      },
-      onPanResponderRelease: () => {
-        pan.flattenOffset();
-        const clampedX = Math.max(0, Math.min(pan.x._value, SCREEN_WIDTH - FAB_SIZE));
-        const clampedY = Math.max(0, Math.min(pan.y._value, SCREEN_HEIGHT - FAB_SIZE));
-        pan.setValue({ x: clampedX, y: clampedY });
-
-        if (!wasDragged.current) {
-          setVisible(true);
-        }
-      },
-    })
-  ).current;
-
-  const handleSend = async () => {
-    const text = input.trim();
+  const sendText = async (raw) => {
+    const text = (raw || "").trim();
     if (!text) return;
 
     const userMsg = { id: Date.now().toString(), from: "user", text };
@@ -92,15 +70,118 @@ export default function ChatBot() {
       setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
     }
   };
+  sendRef.current = sendText;
+
+  const handleSend = () => sendText(input);
+
+  // ---------- Phone (native) speech events ----------
+  useSpeechRecognitionEvent("result", (event) => {
+    const transcript = event.results?.[0]?.transcript ?? "";
+    lastTranscriptRef.current = transcript;
+    setInput(transcript);
+  });
+  useSpeechRecognitionEvent("end", () => {
+    setListening(false);
+    const spoken = lastTranscriptRef.current;
+    lastTranscriptRef.current = "";
+    if (spoken.trim()) sendRef.current(spoken); // auto-send when the person stops talking
+  });
+  useSpeechRecognitionEvent("error", (event) => {
+    setListening(false);
+    lastTranscriptRef.current = "";
+    if (event.error !== "no-speech" && event.error !== "aborted") {
+      Alert.alert("Voice problem", event.message || "Could not hear you. Please try again.");
+    }
+  });
+
+  // Stop listening if the chat window is closed
+  useEffect(() => {
+    if (!visible && listening) stopListening();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible]);
+
+  const startListening = async () => {
+    lastTranscriptRef.current = "";
+
+    // ----- Web / laptop -----
+    if (Platform.OS === "web") {
+      const SR = getWebRecognition();
+      if (!SR) {
+        Alert.alert("Voice not supported", "Please use Google Chrome or Microsoft Edge for voice input.");
+        return;
+      }
+      const rec = new SR();
+      rec.lang = lang.code;
+      rec.interimResults = true;
+      rec.continuous = false;
+      rec.onresult = (e) => {
+        let text = "";
+        for (let i = 0; i < e.results.length; i++) text += e.results[i][0].transcript;
+        lastTranscriptRef.current = text;
+        setInput(text);
+      };
+      rec.onerror = (e) => {
+        setListening(false);
+        if (e.error === "not-allowed" || e.error === "service-not-allowed") {
+          Alert.alert("Microphone blocked", "Allow microphone access in the browser (lock icon next to the address bar).");
+        }
+      };
+      rec.onend = () => {
+        setListening(false);
+        const spoken = lastTranscriptRef.current;
+        lastTranscriptRef.current = "";
+        if (spoken.trim()) sendRef.current(spoken);
+      };
+      webRecRef.current = rec;
+      try {
+        rec.start();
+        setListening(true);
+      } catch (e) {
+        setListening(false);
+      }
+      return;
+    }
+
+    // ----- Phone (Android / iOS) -----
+    try {
+      const perm = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+      if (!perm.granted) {
+        Alert.alert("Permission needed", "Please allow microphone and speech recognition for this app in phone Settings.");
+        return;
+      }
+      ExpoSpeechRecognitionModule.start({
+        lang: lang.code,
+        interimResults: true,
+        continuous: false,
+      });
+      setListening(true);
+    } catch (e) {
+      setListening(false);
+      Alert.alert("Voice not available", "Voice input is not available on this phone.");
+    }
+  };
+
+  const stopListening = () => {
+    try {
+      if (Platform.OS === "web") {
+        webRecRef.current?.stop();
+      } else {
+        ExpoSpeechRecognitionModule.stop();
+      }
+    } catch (e) {
+      // ignore
+    }
+  };
+
+  const toggleMic = () => (listening ? stopListening() : startListening());
+
+  const cycleLanguage = () => setLangIndex((i) => (i + 1) % LANGUAGES.length);
 
   return (
     <>
-      <Animated.View
-        style={[styles.fab, { transform: pan.getTranslateTransform() }]}
-        {...panResponder.panHandlers}
-      >
+      <TouchableOpacity style={styles.fab} onPress={() => setVisible(true)} activeOpacity={0.85}>
         <MaterialCommunityIcons name="robot-happy" size={42} color={colors.surface} />
-      </Animated.View>
+      </TouchableOpacity>
 
       <Modal visible={visible} animationType="slide" transparent>
         <View style={styles.overlay}>
@@ -147,16 +228,32 @@ export default function ChatBot() {
               </View>
             )}
 
+            {listening && (
+              <View style={styles.thinkingRow}>
+                <Ionicons name="mic" size={16} color={colors.primary} />
+                <Text style={styles.thinkingText}>Listening... speak now (tap the mic to stop)</Text>
+              </View>
+            )}
+
             <View style={styles.inputRow}>
+              <TouchableOpacity style={styles.langButton} onPress={cycleLanguage} disabled={listening}>
+                <Text style={styles.langText}>{lang.label}</Text>
+              </TouchableOpacity>
               <TextInput
                 style={styles.input}
-                placeholder="Ask something..."
+                placeholder={listening ? "Listening..." : "Ask something..."}
                 placeholderTextColor={colors.textMuted}
                 value={input}
                 onChangeText={setInput}
                 onSubmitEditing={handleSend}
                 returnKeyType="send"
               />
+              <TouchableOpacity
+                style={[styles.micButton, listening && styles.micButtonActive]}
+                onPress={toggleMic}
+              >
+                <Ionicons name={listening ? "stop" : "mic"} size={20} color={listening ? colors.surface : colors.primary} />
+              </TouchableOpacity>
               <TouchableOpacity style={styles.sendButton} onPress={handleSend}>
                 <Ionicons name="send" size={18} color={colors.surface} />
               </TouchableOpacity>
@@ -171,17 +268,16 @@ export default function ChatBot() {
 const styles = StyleSheet.create({
   fab: {
     position: "absolute",
-    top: 0,
-    left: 0,
-    width: FAB_SIZE,
-    height: FAB_SIZE,
-    borderRadius: FAB_SIZE / 2,
+    bottom: 24,
+    right: 20,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     backgroundColor: colors.primary,
     justifyContent: "center",
     alignItems: "center",
     ...shadow.card,
     elevation: 6,
-    zIndex: 999,
   },
   overlay: {
     flex: 1,
@@ -255,6 +351,30 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     fontSize: fontSize.base,
     color: colors.textPrimary,
+  },
+  langButton: {
+    minWidth: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.border,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 6,
+  },
+  langText: { fontSize: fontSize.sm, color: colors.textSecondary, fontWeight: fontWeight.bold },
+  micButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  micButtonActive: {
+    backgroundColor: "#D32F2F",
+    borderColor: "#D32F2F",
   },
   sendButton: {
     width: 40,

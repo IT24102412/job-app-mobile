@@ -21,7 +21,14 @@
     },
     "plugins": [
       "expo-status-bar",
-      "expo-sharing"
+      "expo-sharing",
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Allow Job Tracker to use the microphone.",
+          "speechRecognitionPermission": "Allow Job Tracker to use speech recognition."
+        }
+      ]
     ],
     "extra": {
       "eas": {
