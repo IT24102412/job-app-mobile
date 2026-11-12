@@ -60,6 +60,23 @@ function arrayBufferToBase64(buffer) {
   return btoa(binary);
 }
 
+// react-native-web's Alert.alert does nothing in the browser, so on the web
+// we use the browser's own alert / confirm boxes instead.
+const showAlert = (title, message, buttons) => {
+  if (Platform.OS !== "web") {
+    Alert.alert(title, message, buttons);
+    return;
+  }
+  const text = message ? `${title}\n\n${message}` : title;
+  const actionButton = buttons && buttons.find((b) => b.style !== "cancel");
+  if (actionButton && buttons.length > 1) {
+    if (window.confirm(text)) actionButton.onPress && actionButton.onPress();
+  } else {
+    window.alert(text);
+    if (actionButton && actionButton.onPress) actionButton.onPress();
+  }
+};
+
 export default function JobDetailScreen({ route, navigation }) {
   const { jobId } = route.params;
   const [job, setJob] = useState(null);
@@ -185,7 +202,7 @@ export default function JobDetailScreen({ route, navigation }) {
 
     const { status } = await Location.requestForegroundPermissionsAsync();
     if (status !== "granted") {
-      Alert.alert("Permission needed", "Location permission is required to track this job.");
+      showAlert("Permission needed", "Location permission is required to track this job.");
       return;
     }
 
@@ -237,7 +254,7 @@ export default function JobDetailScreen({ route, navigation }) {
 
   const handleAssignSelected = async () => {
     if (selectedTechIds.length === 0) {
-      Alert.alert("No one selected", "Please select at least one technician.");
+      showAlert("No one selected", "Please select at least one technician.");
       return;
     }
     setPickerVisible(false);
@@ -253,9 +270,9 @@ export default function JobDetailScreen({ route, navigation }) {
     }
     setActionLoading(false);
     if (failed.length > 0) {
-      Alert.alert("Some assignments failed", `Could not assign: ${failed.join(", ")}`);
+      showAlert("Some assignments failed", `Could not assign: ${failed.join(", ")}`);
     } else {
-      Alert.alert("Assigned", "Technician(s) assigned to this job.");
+      showAlert("Assigned", "Technician(s) assigned to this job.");
     }
     loadJob();
   };
@@ -264,11 +281,11 @@ export default function JobDetailScreen({ route, navigation }) {
     setActionLoading(true);
     try {
       await api.post(`/jobs/${jobId}/start`);
-      Alert.alert("Job started", "You can now begin working on this job.");
+      showAlert("Job started", "You can now begin working on this job.");
       loadJob();
     } catch (error) {
       const detail = error.response?.data?.detail || "Something went wrong.";
-      Alert.alert("Could not start job", detail);
+      showAlert("Could not start job", detail);
     } finally {
       setActionLoading(false);
     }
@@ -304,18 +321,18 @@ export default function JobDetailScreen({ route, navigation }) {
         });
       }
 
-      Alert.alert("Success", "Job sheet uploaded. Job is now closed.");
+      showAlert("Success", "Job sheet uploaded. Job is now closed.");
       loadJob();
     } catch (error) {
       const detail = error.response?.data?.detail || "Upload failed.";
-      Alert.alert("Could not upload", detail);
+      showAlert("Could not upload", detail);
     } finally {
       setActionLoading(false);
     }
   };
 
   const handleCancelJob = () => {
-    Alert.alert(
+    showAlert(
       "Cancel this job?",
       "This cannot be undone. The assigned technician (if any) will be freed up.",
       [
@@ -327,11 +344,11 @@ export default function JobDetailScreen({ route, navigation }) {
             setActionLoading(true);
             try {
               await api.post(`/jobs/${jobId}/cancel`);
-              Alert.alert("Job cancelled");
+              showAlert("Job cancelled");
               loadJob();
             } catch (error) {
               const detail = error.response?.data?.detail || "Could not cancel this job.";
-              Alert.alert("Cancel failed", detail);
+              showAlert("Cancel failed", detail);
             } finally {
               setActionLoading(false);
             }
@@ -343,7 +360,7 @@ export default function JobDetailScreen({ route, navigation }) {
 
   const handleAdminClose = async () => {
     if (closeReason.trim().length < 5) {
-      Alert.alert("Reason required", "Please enter a reason of at least 5 characters.");
+      showAlert("Reason required", "Please enter a reason of at least 5 characters.");
       return;
     }
     setActionLoading(true);
@@ -351,11 +368,11 @@ export default function JobDetailScreen({ route, navigation }) {
       await api.post(`/jobs/${jobId}/admin-close`, { reason: closeReason.trim() });
       setCloseModalVisible(false);
       setCloseReason("");
-      Alert.alert("Job closed", "The job has been closed without a job sheet.");
+      showAlert("Job closed", "The job has been closed without a job sheet.");
       loadJob();
     } catch (error) {
       const detail = error.response?.data?.detail || "Could not close this job.";
-      Alert.alert("Close failed", detail);
+      showAlert("Close failed", detail);
     } finally {
       setActionLoading(false);
     }
@@ -394,12 +411,12 @@ export default function JobDetailScreen({ route, navigation }) {
         if (canShare) {
           await Sharing.shareAsync(fileUri, { mimeType: contentType, dialogTitle: "SR Attachment" });
         } else {
-          Alert.alert("Saved", `File saved to: ${fileUri}`);
+          showAlert("Saved", `File saved to: ${fileUri}`);
         }
       }
     } catch (error) {
       console.log("Failed to load attachment:", error.message);
-      Alert.alert("Error", "Could not load the attachment.");
+      showAlert("Error", "Could not load the attachment.");
     } finally {
       setDownloadingAttachment(false);
     }
@@ -436,12 +453,12 @@ export default function JobDetailScreen({ route, navigation }) {
         if (canShare) {
           await Sharing.shareAsync(fileUri, { mimeType: contentType, dialogTitle: "Job Sheet" });
         } else {
-          Alert.alert("Saved", `File saved to: ${fileUri}`);
+          showAlert("Saved", `File saved to: ${fileUri}`);
         }
       }
     } catch (error) {
       console.log("Failed to load job sheet:", error.message);
-      Alert.alert("Error", "Could not load the job sheet.");
+      showAlert("Error", "Could not load the job sheet.");
     } finally {
       setDownloadingJobsheet(false);
     }
