@@ -117,22 +117,30 @@ export default function DashboardScreen({ navigation }) {
     </View>
   );
 
-  const StatCard = ({ icon, number, label, accent, accentLight }) => (
+  const StatCard = ({ icon, number, label, accent, accentLight, sub }) => (
     <View style={[styles.statCard, { borderTopColor: accent }]}>
       <View style={[styles.statIconCircle, { backgroundColor: accentLight }]}>
         <Ionicons name={icon} size={18} color={accent} />
       </View>
       <Text style={styles.statNumber}>{number}</Text>
       <Text style={styles.statLabel}>{label}</Text>
+      {sub ? <Text style={styles.statSub}>{sub}</Text> : null}
     </View>
   );
 
   // ---------- ADMIN DASHBOARD ----------
   if (role === "admin") {
     const todaysJobs = jobs.filter((j) => isToday(j.created_at));
-    const pending = todaysJobs.filter((j) => j.status === "created" || j.status === "assigned").length;
-    const inProgress = todaysJobs.filter((j) => j.status === "started").length;
-    const closedToday = todaysJobs.filter((j) => j.status === "closed").length;
+    // Pending / in-progress include jobs from earlier days that are still open
+    const pendingJobs = jobs.filter((j) => j.status === "created" || j.status === "assigned");
+    const pending = pendingJobs.length;
+    const pendingEarlier = pendingJobs.filter((j) => !isToday(j.created_at)).length;
+    const inProgressJobs = jobs.filter((j) => j.status === "started");
+    const inProgress = inProgressJobs.length;
+    const inProgressEarlier = inProgressJobs.filter((j) => !isToday(j.created_at)).length;
+    const closedToday = jobs.filter(
+      (j) => j.status === "closed" && j.closed_at && isToday(j.closed_at)
+    ).length;
     const availableCount = technicians.filter((t) => t.is_available).length;
 
     return (
@@ -142,10 +150,10 @@ export default function DashboardScreen({ navigation }) {
         <Text style={styles.sectionTitle}>Today</Text>
         <View style={styles.statsRow}>
           <StatCard icon="briefcase" number={todaysJobs.length} label="Jobs Today" accent={colors.primary} accentLight={colors.primaryLight} />
-          <StatCard icon="hourglass" number={pending} label="Pending" accent={colors.warning} accentLight={colors.warningLight} />
+          <StatCard icon="hourglass" number={pending} label="Pending" sub={pendingEarlier > 0 ? `${pendingEarlier} from earlier days` : null} accent={colors.warning} accentLight={colors.warningLight} />
         </View>
         <View style={styles.statsRow}>
-          <StatCard icon="play" number={inProgress} label="In Progress" accent={colors.accentTeal} accentLight={colors.accentTealLight} />
+          <StatCard icon="play" number={inProgress} label="In Progress" sub={inProgressEarlier > 0 ? `${inProgressEarlier} from earlier days` : null} accent={colors.accentTeal} accentLight={colors.accentTealLight} />
           <StatCard icon="checkmark-circle" number={closedToday} label="Closed Today" accent={colors.success} accentLight={colors.successLight} />
         </View>
 
@@ -409,6 +417,7 @@ const styles = StyleSheet.create({
   },
   statNumber: { fontSize: 26, fontWeight: fontWeight.bold, color: colors.textPrimary },
   statLabel: { color: colors.textSecondary, fontSize: fontSize.xs, marginTop: 2, textAlign: "center" },
+  statSub: { color: colors.textMuted, fontSize: fontSize.xs, marginTop: 2, textAlign: "center" },
   card: {
     backgroundColor: colors.surface,
     padding: spacing.lg,
