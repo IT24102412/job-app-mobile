@@ -24,7 +24,8 @@ export default function JobListScreen({ navigation }) {
     setLoading(true);
     try {
       const response = await api.get("/jobs/");
-      setJobs(response.data);
+      // newest job first
+      setJobs([...response.data].sort((a, b) => b.id - a.id));
     } catch (error) {
       console.log("Failed to load jobs:", error.message);
     } finally {
@@ -128,12 +129,6 @@ export default function JobListScreen({ navigation }) {
                   </Text>
                 </View>
               </View>
-              {item.customer_name && (
-                <View style={styles.customerRow}>
-                  <Ionicons name="person-outline" size={14} color={colors.textSecondary} />
-                  <Text style={styles.customerName}>{item.customer_name}</Text>
-                </View>
-              )}
               <Text style={styles.detail}>
                 {item.job_type} · {item.service_type}
               </Text>
@@ -196,13 +191,6 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
   },
   badgeText: { fontSize: fontSize.xs, fontWeight: fontWeight.bold },
-  customerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    marginTop: spacing.xs,
-  },
-  customerName: { color: colors.textPrimary, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
-  detail: { color: colors.textSecondary, marginTop: 2, fontSize: fontSize.base },
+  detail: { color: colors.textSecondary, marginTop: spacing.xs, fontSize: fontSize.base },
   empty: { textAlign: "center", marginTop: 40, color: colors.textMuted },
 });
