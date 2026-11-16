@@ -11,6 +11,9 @@ import {
   Platform,
   ActivityIndicator,
   Alert,
+  Animated,
+  PanResponder,
+  Dimensions,
 } from "react-native";
 import { MaterialCommunityIcons, Ionicons } from "@expo/vector-icons";
 import {
@@ -47,6 +50,45 @@ export default function ChatBot() {
   const sendRef = useRef(null);
 
   const lang = LANGUAGES[langIndex];
+
+  // ---------- Draggable assistant button ----------
+  const pan = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
+  const savedPos = useRef({ x: 0, y: 0 });
+  const dragged = useRef(false);
+
+  const clampPos = (x, y) => {
+    const { width, height } = Dimensions.get("window");
+    // button starts 20px from the right and 24px from the bottom, 72px wide
+    const minX = -(width - 72 - 20 - 8);
+    const maxX = 12;
+    const minY = -(height - 72 - 24 - 110);
+    const maxY = 16;
+    return {
+      x: Math.min(maxX, Math.max(minX, x)),
+      y: Math.min(maxY, Math.max(minY, y)),
+    };
+  };
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: () => {
+        dragged.current = false;
+      },
+      onPanResponderMove: (_, g) => {
+        if (Math.abs(g.dx) > 6 || Math.abs(g.dy) > 6) dragged.current = true;
+        const pos = clampPos(savedPos.current.x + g.dx, savedPos.current.y + g.dy);
+        pan.setValue(pos);
+      },
+      onPanResponderRelease: (_, g) => {
+        const pos = clampPos(savedPos.current.x + g.dx, savedPos.current.y + g.dy);
+        savedPos.current = pos;
+        pan.setValue(pos);
+        if (!dragged.current) setVisible(true); // a simple tap opens the chat
+      },
+    })
+  ).current;
 
   const sendText = async (raw) => {
     const text = (raw || "").trim();
@@ -179,9 +221,12 @@ export default function ChatBot() {
 
   return (
     <>
-      <TouchableOpacity style={styles.fab} onPress={() => setVisible(true)} activeOpacity={0.85}>
+      <Animated.View
+        style={[styles.fab, { transform: pan.getTranslateTransform() }]}
+        {...panResponder.panHandlers}
+      >
         <MaterialCommunityIcons name="robot-happy" size={42} color={colors.surface} />
-      </TouchableOpacity>
+      </Animated.View>
 
       <Modal visible={visible} animationType="slide" transparent>
         <View style={styles.overlay}>
