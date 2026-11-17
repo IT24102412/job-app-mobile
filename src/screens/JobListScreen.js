@@ -138,6 +138,12 @@ export default function JobListScreen({ navigation }) {
               <Text style={styles.detail}>
                 {item.job_type} · {item.service_type}
               </Text>
+              {item.trip_date ? (
+                <Text style={styles.tripLine}>
+                  Trip: {new Date(item.trip_date + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+                  {item.stop_order ? ` · stop ${item.stop_order}` : ""}
+                </Text>
+              ) : null}
             </TouchableOpacity>
           );
         }}
@@ -205,5 +211,6 @@ const styles = StyleSheet.create({
   },
   customerName: { color: colors.textPrimary, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
   detail: { color: colors.textSecondary, marginTop: 2, fontSize: fontSize.base },
+  tripLine: { color: colors.primaryDark, fontSize: fontSize.sm, fontWeight: fontWeight.semibold, marginTop: 2 },
   empty: { textAlign: "center", marginTop: 40, color: colors.textMuted },
 });

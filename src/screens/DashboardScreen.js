@@ -23,6 +23,11 @@ function isToday(dateString) {
   );
 }
 
+function todayIso() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 function getGreeting() {
   const hour = new Date().getHours();
   if (hour < 12) return "Good morning";
@@ -41,6 +46,7 @@ const ROLE_LABELS = {
   admin: "Administrator",
   sales_executive: "Sales Executive",
   technician: "Technician",
+  workshop_coordinator: "Workshop Coordinator",
 };
 
 export default function DashboardScreen({ navigation }) {
@@ -52,6 +58,8 @@ export default function DashboardScreen({ navigation }) {
   const [jobs, setJobs] = useState([]);
   const [technicians, setTechnicians] = useState([]);
   const [activity, setActivity] = useState([]);
+  const [unscheduled, setUnscheduled] = useState([]);
+  const [trips, setTrips] = useState([]);
 
   const load = async () => {
     setLoading(true);
@@ -73,6 +81,17 @@ export default function DashboardScreen({ navigation }) {
         ]);
         setTechnicians(techRes.data);
         setActivity(activityRes.data);
+      }
+
+      if (r === "workshop_coordinator") {
+        const [unscheduledRes, tripsRes, techRes] = await Promise.all([
+          api.get("/workshop/unscheduled-jobs"),
+          api.get("/workshop/trips", { params: { date_from: todayIso() } }),
+          api.get("/technicians/"),
+        ]);
+        setUnscheduled(unscheduledRes.data);
+        setTrips(tripsRes.data);
+        setTechnicians(techRes.data);
       }
     } catch (error) {
       console.log("Failed to load dashboard:", error.message);
@@ -212,6 +231,54 @@ export default function DashboardScreen({ navigation }) {
         <TouchableOpacity style={styles.linkButton} onPress={() => navigation.navigate("DailyReport")}>
           <Ionicons name="calendar-outline" size={18} color={colors.primary} />
           <Text style={styles.linkButtonText}>View Daily Technician Report</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.linkButton} onPress={() => navigation.navigate("WorkshopJobs")}>
+          <Ionicons name="file-tray-full-outline" size={18} color={colors.primary} />
+          <Text style={styles.linkButtonText}>Workshop Jobs Waiting to Schedule</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.linkButton} onPress={() => navigation.navigate("Trips")}>
+          <Ionicons name="car-outline" size={18} color={colors.primary} />
+          <Text style={styles.linkButtonText}>Workshop Trips</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.linkButtonOutline} onPress={() => navigation.navigate("JobList")}>
+          <Text style={styles.linkButtonOutlineText}>View All Jobs</Text>
+        </TouchableOpacity>
+      </ScrollView>
+    );
+  }
+
+  // ---------- WORKSHOP COORDINATOR DASHBOARD ----------
+  if (role === "workshop_coordinator") {
+    const today = todayIso();
+    const tripsToday = trips.filter((t) => t.trip_date === today).length;
+    const upcomingTrips = trips.filter((t) => t.trip_date > today).length;
+    const availableTechs = technicians.filter((t) => t.is_available).length;
+
+    return (
+      <ScrollView style={styles.container}>
+        <Header />
+
+        <Text style={styles.sectionTitle}>Workshop</Text>
+        <View style={styles.statsRow}>
+          <StatCard icon="file-tray-full" number={unscheduled.length} label="Waiting to Schedule" accent={colors.warning} accentLight={colors.warningLight} />
+          <StatCard icon="car" number={tripsToday} label="Trips Today" accent={colors.primary} accentLight={colors.primaryLight} />
+        </View>
+        <View style={styles.statsRow}>
+          <StatCard icon="calendar" number={upcomingTrips} label="Upcoming Trips" accent={colors.accentTeal} accentLight={colors.accentTealLight} />
+          <StatCard icon="people" number={`${availableTechs}/${technicians.length}`} label="Technicians Free" accent={colors.accentPurple} accentLight={colors.primaryLight} />
+        </View>
+
+        <TouchableOpacity style={styles.linkButton} onPress={() => navigation.navigate("WorkshopJobs")}>
+          <Ionicons name="file-tray-full-outline" size={18} color={colors.primary} />
+          <Text style={styles.linkButtonText}>Workshop Jobs Waiting to Schedule</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.linkButton} onPress={() => navigation.navigate("Trips")}>
+          <Ionicons name="car-outline" size={18} color={colors.primary} />
+          <Text style={styles.linkButtonText}>Workshop Trips</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.linkButtonOutline} onPress={() => navigation.navigate("JobList")}>

@@ -665,6 +665,18 @@ export default function JobDetailScreen({ route, navigation }) {
           </View>
           <Text style={styles.value}>{job.job_type}</Text>
         </View>
+        {job.trip_date ? (
+          <View style={styles.row}>
+            <View style={styles.rowLabel}>
+              <Ionicons name="car-outline" size={16} color={colors.textSecondary} />
+              <Text style={styles.label}>Workshop Trip</Text>
+            </View>
+            <Text style={styles.value}>
+              {new Date(job.trip_date + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+              {job.stop_order ? ` · stop ${job.stop_order}` : ""}
+            </Text>
+          </View>
+        ) : null}
         <View style={styles.row}>
           <View style={styles.rowLabel}>
             <Ionicons name="construct-outline" size={16} color={colors.textSecondary} />
@@ -825,7 +837,7 @@ export default function JobDetailScreen({ route, navigation }) {
         </View>
       )}
 
-      {canManage && (job.status === "created" || job.status === "assigned") && (
+      {canManage && job.job_type !== "workshop" && (job.status === "created" || job.status === "assigned") && (
         <TouchableOpacity
           style={styles.actionButton}
           onPress={openTechnicianPicker}
@@ -843,10 +855,14 @@ export default function JobDetailScreen({ route, navigation }) {
         </TouchableOpacity>
       )}
 
-      {job.status === "created" && !canManage && (
+      {job.status === "created" && (!canManage || job.job_type === "workshop") && (
         <View style={styles.waitingBox}>
           <Ionicons name="hourglass-outline" size={18} color={colors.textSecondary} />
-          <Text style={styles.waitingText}>Waiting to be assigned to a technician.</Text>
+          <Text style={styles.waitingText}>
+            {job.job_type === "workshop"
+              ? "Waiting to be scheduled by the workshop coordinator."
+              : "Waiting to be assigned to a technician."}
+          </Text>
         </View>
       )}
 

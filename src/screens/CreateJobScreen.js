@@ -17,6 +17,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
 import * as Location from "expo-location";
 import api from "../api/client";
+import { showAlert } from "../utils/notify";
 import { getCurrentUserId } from "../api/auth";
 import { colors, spacing, radius, fontSize, fontWeight, shadow } from "../theme";
 
@@ -120,7 +121,7 @@ export default function CreateJobScreen({ navigation }) {
 
   const handleGeocodeAddress = async () => {
     if (!newCustomerAddress.trim() || newCustomerAddress.trim().length < 5) {
-      Alert.alert("Address needed", "Please type the customer's address first.");
+      showAlert("Address needed", "Please type the customer's address first.");
       return;
     }
 
@@ -136,7 +137,7 @@ export default function CreateJobScreen({ navigation }) {
       const results = await response.json();
 
       if (results.length === 0) {
-        Alert.alert(
+        showAlert(
           "Location not found",
           "Couldn't find this address automatically. Try a more specific address (include the town/city name), or use \"Use My Current Location\" if you're at the site."
         );
@@ -147,7 +148,7 @@ export default function CreateJobScreen({ navigation }) {
       setNewCustomerCoords({ latitude: parseFloat(match.lat), longitude: parseFloat(match.lon) });
       setFoundLocationLabel(match.display_name);
     } catch (error) {
-      Alert.alert("Error", "Could not look up this address right now. Please try again.");
+      showAlert("Error", "Could not look up this address right now. Please try again.");
     } finally {
       setGeocoding(false);
     }
@@ -158,14 +159,14 @@ export default function CreateJobScreen({ navigation }) {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") {
-        Alert.alert("Permission needed", "Location permission is required to set this customer's location.");
+        showAlert("Permission needed", "Location permission is required to set this customer's location.");
         return;
       }
       const loc = await Location.getCurrentPositionAsync({});
       setNewCustomerCoords({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
       setFoundLocationLabel("Your current location");
     } catch (error) {
-      Alert.alert("Error", "Could not get your current location. Please try again.");
+      showAlert("Error", "Could not get your current location. Please try again.");
     } finally {
       setGettingLocation(false);
     }
@@ -173,15 +174,15 @@ export default function CreateJobScreen({ navigation }) {
 
   const handleSaveNewCustomer = async () => {
     if (!newCustomerName.trim()) {
-      Alert.alert("Missing info", "Please enter the customer's name.");
+      showAlert("Missing info", "Please enter the customer's name.");
       return;
     }
     if (!newCustomerAddress.trim() || newCustomerAddress.trim().length < 5) {
-      Alert.alert("Missing info", "Please enter an address (at least 5 characters).");
+      showAlert("Missing info", "Please enter an address (at least 5 characters).");
       return;
     }
     if (!newCustomerCoords) {
-      Alert.alert(
+      showAlert(
         "Location required",
         "Please find the location from the address, or use your current location if you're at the site."
       );
@@ -203,10 +204,10 @@ export default function CreateJobScreen({ navigation }) {
       setCustomerId(newCustomer.id);
       setAddCustomerVisible(false);
       setCustomerPickerVisible(false);
-      Alert.alert("Customer added", `${newCustomer.name} has been added and selected for this job.`);
+      showAlert("Customer added", `${newCustomer.name} has been added and selected for this job.`);
     } catch (error) {
       const detail = error.response?.data?.detail || "Could not add this customer.";
-      Alert.alert("Failed", typeof detail === "string" ? detail : JSON.stringify(detail));
+      showAlert("Failed", typeof detail === "string" ? detail : JSON.stringify(detail));
     } finally {
       setSavingCustomer(false);
     }
@@ -214,11 +215,22 @@ export default function CreateJobScreen({ navigation }) {
 
   const handleCreate = async () => {
     if (!customerId) {
-      Alert.alert("Missing info", "Please select a customer.");
+      showAlert("Missing info", "Please select a customer.");
       return;
     }
-    if (!regionalCenterId) {
-      Alert.alert("Missing info", "Please select a regional center.");
+    let centerIdToSend = regionalCenterId;
+    if (jobType === "workshop") {
+      // Workshop jobs use the special "Workshop" center; no regional center is needed
+      const workshopCenter = regionalCenters.find(
+        (c) => (c.name || "").trim().toLowerCase() === "workshop"
+      );
+      if (!workshopCenter) {
+        showAlert("Setup needed", "The 'Workshop' center is missing. Please ask the admin to set it up.");
+        return;
+      }
+      centerIdToSend = workshopCenter.id;
+    } else if (!regionalCenterId) {
+      showAlert("Missing info", "Please select a regional center.");
       return;
     }
     const salesExecutiveId = await getCurrentUserId();
@@ -232,7 +244,7 @@ export default function CreateJobScreen({ navigation }) {
         remarks: remarks.trim() || null,
         customer_id: customerId,
         sales_executive_id: salesExecutiveId,
-        regional_center_id: regionalCenterId,
+        regional_center_id: centerIdToSend,
       });
 
       const newJobId = response.data.id;
@@ -258,7 +270,7 @@ export default function CreateJobScreen({ navigation }) {
           }
         } catch (attachError) {
           console.log("Attachment upload failed:", attachError.message);
-          Alert.alert(
+          showAlert(
             "Job created",
             `The job (${refNo}) was created, but the attachment failed to upload. You can try again from the job's detail screen.`
           );
@@ -267,12 +279,12 @@ export default function CreateJobScreen({ navigation }) {
         }
       }
 
-      Alert.alert("Success", `Job created with reference number: ${refNo}`, [
+      showAlert("Success", `Job created with reference number: ${refNo}`, [
         { text: "OK", onPress: () => navigation.goBack() },
       ]);
     } catch (error) {
       const detail = error.response?.data?.detail || "Could not create job.";
-      Alert.alert("Failed", typeof detail === "string" ? detail : JSON.stringify(detail));
+      showAlert("Failed", typeof detail === "string" ? detail : JSON.stringify(detail));
     } finally {
       setLoading(false);
     }
@@ -392,6 +404,12 @@ export default function CreateJobScreen({ navigation }) {
         <Ionicons name="chevron-down" size={20} color={colors.textSecondary} />
       </TouchableOpacity>
 
+      {jobType === "workshop" ? (
+        <Text style={styles.refNoHint}>
+          Workshop jobs are scheduled by the workshop coordinator, so no regional center is needed.
+        </Text>
+      ) : (
+      <>
       <Text style={styles.label}>Regional Center</Text>
       {suggesting ? (
         <ActivityIndicator size="small" color={colors.primary} style={{ marginVertical: 8 }} />
@@ -404,12 +422,16 @@ export default function CreateJobScreen({ navigation }) {
           )}
           <View style={styles.pickerBox}>
             <Picker selectedValue={regionalCenterId} onValueChange={setRegionalCenterId}>
-              {regionalCenters.map((rc) => (
+              {regionalCenters
+                .filter((rc) => (rc.name || "").trim().toLowerCase() !== "workshop")
+                .map((rc) => (
                 <Picker.Item key={rc.id} label={rc.name} value={rc.id} />
               ))}
             </Picker>
           </View>
         </>
+      )}
+      </>
       )}
 
       <TouchableOpacity style={styles.button} onPress={handleCreate} disabled={loading}>
