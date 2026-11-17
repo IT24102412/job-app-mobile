@@ -250,6 +250,15 @@ export default function CreateJobScreen({ navigation }) {
       const newJobId = response.data.id;
       const refNo = response.data.job_number;
 
+      if (jobType === "workshop") {
+        // Tell the workshop coordinator's phone; the job is already saved, so ignore failures
+        try {
+          await api.post(`/workshop/jobs/${newJobId}/notify-coordinators`);
+        } catch (notifyError) {
+          console.log("Coordinator notification failed:", notifyError.message);
+        }
+      }
+
       if (srAttachment) {
         try {
           const formData = new FormData();
