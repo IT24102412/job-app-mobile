@@ -24,8 +24,14 @@ export default function JobListScreen({ navigation }) {
     setLoading(true);
     try {
       const response = await api.get("/jobs/");
+      // The workshop coordinator only sees workshop jobs; everyone else sees what the server sends
+      const currentRole = await getCurrentUserRole();
+      const visible =
+        currentRole === "workshop_coordinator"
+          ? response.data.filter((j) => j.job_type === "workshop")
+          : response.data;
       // newest job first
-      setJobs([...response.data].sort((a, b) => b.id - a.id));
+      setJobs([...visible].sort((a, b) => b.id - a.id));
     } catch (error) {
       console.log("Failed to load jobs:", error.message);
     } finally {
