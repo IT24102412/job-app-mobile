@@ -57,6 +57,8 @@ export default function DashboardScreen({ navigation }) {
 
   const [jobs, setJobs] = useState([]);
   const [technicians, setTechnicians] = useState([]);
+  const [workshopTechs, setWorkshopTechs] = useState([]);
+  const [workshopCenterId, setWorkshopCenterId] = useState(null);
   const [activity, setActivity] = useState([]);
   const [unscheduled, setUnscheduled] = useState([]);
   const [trips, setTrips] = useState([]);
@@ -75,23 +77,26 @@ export default function DashboardScreen({ navigation }) {
       setJobs(jobsRes.data);
 
       if (r === "admin") {
-        const [techRes, activityRes] = await Promise.all([
+        const [techRes, activityRes, centersRes] = await Promise.all([
           api.get("/technicians/"),
           api.get("/notifications/recent-activity", { params: { limit: 8 } }),
+          api.get("/regional-centers/").catch(() => ({ data: [] })),
         ]);
         setTechnicians(techRes.data);
         setActivity(activityRes.data);
+        const wc = centersRes.data.find((c) => (c.name || "").trim().toLowerCase() === "workshop");
+        setWorkshopCenterId(wc ? wc.id : null);
       }
 
       if (r === "workshop_coordinator") {
         const [unscheduledRes, tripsRes, techRes] = await Promise.all([
           api.get("/workshop/unscheduled-jobs"),
           api.get("/workshop/trips", { params: { date_from: todayIso() } }),
-          api.get("/technicians/"),
+          api.get("/workshop/technicians", { params: { trip_date: todayIso() } }),
         ]);
         setUnscheduled(unscheduledRes.data);
         setTrips(tripsRes.data);
-        setTechnicians(techRes.data);
+        setWorkshopTechs(techRes.data);
       }
     } catch (error) {
       console.log("Failed to load dashboard:", error.message);
@@ -160,7 +165,8 @@ export default function DashboardScreen({ navigation }) {
     const closedToday = jobs.filter(
       (j) => j.status === "closed" && j.closed_at && isToday(j.closed_at)
     ).length;
-    const availableCount = technicians.filter((t) => t.is_available).length;
+    const regionalTechs = technicians.filter((t) => t.regional_center_id !== workshopCenterId);
+    const regionalAvailable = regionalTechs.filter((t) => t.is_available).length;
 
     return (
       <ScrollView style={styles.container}>
@@ -182,16 +188,17 @@ export default function DashboardScreen({ navigation }) {
             <Text style={styles.cardTitle}>Technician Availability</Text>
           </View>
           <Text style={styles.availabilityText}>
-            {availableCount} of {technicians.length} available right now
+            {regionalAvailable} of {regionalTechs.length} available right now
           </Text>
           <View style={styles.availabilityBarTrack}>
             <View
               style={[
                 styles.availabilityBarFill,
-                { width: `${technicians.length ? (availableCount / technicians.length) * 100 : 0}%` },
+                { width: `${regionalTechs.length ? (regionalAvailable / regionalTechs.length) * 100 : 0}%` },
               ]}
             />
           </View>
+
         </View>
 
         <TouchableOpacity
@@ -255,7 +262,7 @@ export default function DashboardScreen({ navigation }) {
     const today = todayIso();
     const tripsToday = trips.filter((t) => t.trip_date === today).length;
     const upcomingTrips = trips.filter((t) => t.trip_date > today).length;
-    const availableTechs = technicians.filter((t) => t.is_available).length;
+    const availableTechs = workshopTechs.filter((t) => !t.busy).length;
 
     return (
       <ScrollView style={styles.container}>
@@ -268,7 +275,7 @@ export default function DashboardScreen({ navigation }) {
         </View>
         <View style={styles.statsRow}>
           <StatCard icon="calendar" number={upcomingTrips} label="Upcoming Trips" accent={colors.accentTeal} accentLight={colors.accentTealLight} />
-          <StatCard icon="people" number={`${availableTechs}/${technicians.length}`} label="Technicians Free" accent={colors.accentPurple} accentLight={colors.primaryLight} />
+          <StatCard icon="people" number={`${availableTechs}/${workshopTechs.length}`} label="Technicians Free" accent={colors.accentPurple} accentLight={colors.primaryLight} />
         </View>
 
         <TouchableOpacity style={styles.linkButton} onPress={() => navigation.navigate("WorkshopJobs")}>

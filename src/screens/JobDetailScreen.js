@@ -473,6 +473,11 @@ export default function JobDetailScreen({ route, navigation }) {
   }
 
   const canManage = role === "admin";
+
+  // Workshop technicians are scheduled only by the workshop coordinator, so hide them here
+  const techPickerRows = availableTechs.filter(
+    (t) => (t.regional_center_name || "").trim().toLowerCase() !== "workshop"
+  );
   const canCancel = canManage && (job.status === "created" || job.status === "assigned");
   const canForceClose = canManage && (job.status === "assigned" || job.status === "started");
 
@@ -943,7 +948,7 @@ export default function JobDetailScreen({ route, navigation }) {
               <ActivityIndicator size="large" color={colors.primary} style={{ marginVertical: 20 }} />
             ) : (
               <FlatList
-                data={availableTechs}
+                data={techPickerRows}
                 keyExtractor={(item) => item.id.toString()}
                 ListEmptyComponent={
                   <Text style={styles.emptyText}>No available technicians right now.</Text>
