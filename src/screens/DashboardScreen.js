@@ -240,16 +240,6 @@ export default function DashboardScreen({ navigation }) {
           <Text style={styles.linkButtonText}>View Daily Technician Report</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.linkButton} onPress={() => navigation.navigate("WorkshopJobs")}>
-          <Ionicons name="file-tray-full-outline" size={18} color={colors.primary} />
-          <Text style={styles.linkButtonText}>Workshop Jobs Waiting to Schedule</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.linkButton} onPress={() => navigation.navigate("Trips")}>
-          <Ionicons name="car-outline" size={18} color={colors.primary} />
-          <Text style={styles.linkButtonText}>Workshop Trips</Text>
-        </TouchableOpacity>
-
         <TouchableOpacity style={styles.linkButtonOutline} onPress={() => navigation.navigate("JobList")}>
           <Text style={styles.linkButtonOutlineText}>View All Jobs</Text>
         </TouchableOpacity>
