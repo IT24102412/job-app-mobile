@@ -16,6 +16,9 @@ import api from "../api/client";
 import { showAlert } from "../utils/notify";
 import { colors, spacing, radius, fontSize, fontWeight, shadow } from "../theme";
 
+// Drivers are named "Calling name - Vehicle number", e.g. "Nuwan - PA-5931"
+const isDriverName = (name) => /\s-\s[A-Za-z]{1,4}-?\d{3,4}\s*$/.test(name || "");
+
 const toIso = (d) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
@@ -292,7 +295,12 @@ export default function WorkshopJobsScreen({ navigation }) {
         <View style={styles.modalOverlay}>
           <View style={styles.modalPanel}>
             <Text style={styles.modalTitle}>Plan Trip</Text>
-            <ScrollView>
+            <ScrollView
+              style={{ flexShrink: 1 }}
+              contentContainerStyle={{ paddingBottom: 16 }}
+              nestedScrollEnabled
+              keyboardShouldPersistTaps="handled"
+            >
               <Text style={styles.sectionLabel}>Date</Text>
               <View style={styles.dateRow}>
                 <TouchableOpacity onPress={() => changeDay(-1)} disabled={!canGoBack} style={styles.dateArrow}>
@@ -337,35 +345,52 @@ export default function WorkshopJobsScreen({ navigation }) {
                 );
               })}
 
-              <Text style={styles.sectionLabel}>Technicians</Text>
               {techsLoading ? (
-                <ActivityIndicator size="small" color={colors.primary} style={{ marginVertical: 12 }} />
+                <>
+                  <Text style={styles.sectionLabel}>Technicians</Text>
+                  <ActivityIndicator size="small" color={colors.primary} style={{ marginVertical: 12 }} />
+                </>
               ) : techs.length === 0 ? (
-                <Text style={styles.stopSub}>No technicians found.</Text>
+                <>
+                  <Text style={styles.sectionLabel}>Technicians</Text>
+                  <Text style={styles.stopSub}>No technicians found.</Text>
+                </>
               ) : (
-                techs.map((tech) => {
-                  const chosen = techIds.includes(tech.id);
-                  return (
-                    <TouchableOpacity
-                      key={tech.id}
-                      style={[styles.techRow, tech.busy && { opacity: 0.5 }]}
-                      onPress={() => toggleTech(tech)}
-                      activeOpacity={tech.busy ? 1 : 0.7}
-                    >
-                      <Ionicons
-                        name={chosen ? "checkbox" : "square-outline"}
-                        size={22}
-                        color={chosen ? colors.primary : colors.textMuted}
-                      />
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.stopTitle}>{tech.name}</Text>
-                        <Text style={styles.stopSub}>
-                          {tech.busy ? tech.busy_reason : tech.regional_center_name || "Available"}
-                        </Text>
-                      </View>
-                    </TouchableOpacity>
-                  );
-                })
+                [
+                  { title: "Technicians", list: techs.filter((t) => !isDriverName(t.name)) },
+                  { title: "Drivers", list: techs.filter((t) => isDriverName(t.name)) },
+                ].map((group) =>
+                  group.list.length === 0 ? null : (
+                    <View key={group.title}>
+                      <Text style={styles.sectionLabel}>
+                        {group.title} ({group.list.length})
+                      </Text>
+                      {group.list.map((tech) => {
+                        const chosen = techIds.includes(tech.id);
+                        return (
+                          <TouchableOpacity
+                            key={tech.id}
+                            style={[styles.techRow, tech.busy && { opacity: 0.5 }]}
+                            onPress={() => toggleTech(tech)}
+                            activeOpacity={tech.busy ? 1 : 0.7}
+                          >
+                            <Ionicons
+                              name={chosen ? "checkbox" : "square-outline"}
+                              size={22}
+                              color={chosen ? colors.primary : colors.textMuted}
+                            />
+                            <View style={{ flex: 1 }}>
+                              <Text style={styles.stopTitle}>{tech.name}</Text>
+                              <Text style={styles.stopSub}>
+                                {tech.busy ? tech.busy_reason : tech.regional_center_name || "Available"}
+                              </Text>
+                            </View>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  )
+                )
               )}
 
               <Text style={styles.sectionLabel}>Notes (optional)</Text>
@@ -477,6 +502,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: radius.xl,
     padding: spacing.xl,
     maxHeight: "90%",
+    flexShrink: 1,
   },
   modalTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.textPrimary, marginBottom: spacing.sm },
   sectionLabel: {

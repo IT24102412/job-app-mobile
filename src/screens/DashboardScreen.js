@@ -259,7 +259,10 @@ export default function DashboardScreen({ navigation }) {
     const today = todayIso();
     const tripsToday = trips.filter((t) => t.trip_date === today).length;
     const upcomingTrips = trips.filter((t) => t.trip_date > today).length;
-    const availableTechs = workshopTechs.filter((t) => !t.busy).length;
+    const workshopOnlyTechs = workshopTechs.filter((t) => !isDriverName(t.name));
+    const workshopDrivers = workshopTechs.filter((t) => isDriverName(t.name));
+    const freeTechs = workshopOnlyTechs.filter((t) => !t.busy).length;
+    const freeDrivers = workshopDrivers.filter((t) => !t.busy).length;
 
     return (
       <ScrollView style={styles.container}>
@@ -271,8 +274,12 @@ export default function DashboardScreen({ navigation }) {
           <StatCard icon="car" number={tripsToday} label="Trips Today" accent={colors.primary} accentLight={colors.primaryLight} />
         </View>
         <View style={styles.statsRow}>
+          <StatCard icon="people" number={`${freeTechs}/${workshopOnlyTechs.length}`} label="Technicians Free" accent={colors.accentPurple} accentLight={colors.primaryLight} />
+          <StatCard icon="car-sport" number={`${freeDrivers}/${workshopDrivers.length}`} label="Drivers Free" accent={colors.accentOrange} accentLight={colors.warningLight} />
+        </View>
+        <View style={styles.statsRow}>
           <StatCard icon="calendar" number={upcomingTrips} label="Upcoming Trips" accent={colors.accentTeal} accentLight={colors.accentTealLight} />
-          <StatCard icon="people" number={`${availableTechs}/${workshopTechs.length}`} label="Technicians Free" accent={colors.accentPurple} accentLight={colors.primaryLight} />
+          <View style={{ flex: 1 }} />
         </View>
 
         <TouchableOpacity style={styles.linkButton} onPress={() => navigation.navigate("WorkshopJobs")}>
