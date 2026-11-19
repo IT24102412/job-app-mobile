@@ -159,6 +159,24 @@ export default function JobDetailScreen({ route, navigation }) {
 
   const myAssignment = assignedTechs.find((t) => t.user_id === currentUserId) || null;
   const iHaveStarted = !!myAssignment?.started_at;
+  // Drivers ("Calling name - Vehicle number") only drive the trip: they don't start or close jobs
+  const iAmDriver = /\s-\s[A-Za-z]{1,4}-?\d{3,4}\s*$/.test(myAssignment?.name || "");
+
+  // Workshop jobs: tell the coordinator once that this technician has opened the assigned job
+  const seenSent = useRef(false);
+  useEffect(() => {
+    if (
+      role === "technician" &&
+      job?.job_type === "workshop" &&
+      job.status === "assigned" &&
+      myAssignment &&
+      !iAmDriver &&
+      !seenSent.current
+    ) {
+      seenSent.current = true;
+      api.post(`/workshop/jobs/${job.id}/seen`).catch(() => {});
+    }
+  }, [role, job, myAssignment]);
 
   useEffect(() => {
     if (role === "technician" && iHaveStarted && job?.status !== "closed" && job?.status !== "cancelled") {
@@ -502,10 +520,11 @@ export default function JobDetailScreen({ route, navigation }) {
   const canIStart =
     role === "technician" &&
     myAssignment &&
+    !iAmDriver &&
     !myAssignment.started_at &&
     (job.status === "assigned" || job.status === "started");
 
-  const canIUpload = role === "technician" && myAssignment && job.status === "started";
+  const canIUpload = role === "technician" && myAssignment && !iAmDriver && job.status === "started";
 
   const techIdToColor = {};
   assignedTechs.forEach((t, i) => {
@@ -897,6 +916,15 @@ export default function JobDetailScreen({ route, navigation }) {
             {actionLoading ? "Uploading..." : "Upload Job Sheet"}
           </Text>
         </TouchableOpacity>
+      )}
+
+      {iAmDriver && job.status !== "closed" && job.status !== "cancelled" && (
+        <View style={styles.waitingBox}>
+          <Ionicons name="car-outline" size={18} color={colors.textSecondary} />
+          <Text style={styles.waitingText}>
+            You are the driver for this trip. The technicians start and close the job.
+          </Text>
+        </View>
       )}
 
       {job.status === "closed" && (
