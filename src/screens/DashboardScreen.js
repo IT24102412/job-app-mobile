@@ -42,6 +42,11 @@ function getInitials(name) {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
+// Workshop drivers are named "Calling name - Vehicle number", e.g. "Nuwan - PA-5931"
+function isDriverName(name) {
+  return /\s-\s[A-Za-z]{1,4}-?\d{3,4}\s*$/.test(name || "");
+}
+
 const ROLE_LABELS = {
   admin: "Administrator",
   sales_executive: "Sales Executive",
@@ -122,14 +127,16 @@ export default function DashboardScreen({ navigation }) {
   const Header = () => (
     <View style={styles.header}>
       <View style={styles.avatar}>
-        <Text style={styles.avatarText}>{getInitials(name)}</Text>
+        <Text style={styles.avatarText}>{getInitials(role === "technician" && isDriverName(name) ? name.split(" - ")[0] : name)}</Text>
       </View>
       <View style={{ flex: 1 }}>
         <Text style={styles.greeting}>{getGreeting()},</Text>
         <Text style={styles.userName}>{name || "there"}</Text>
       </View>
       <View style={styles.roleBadge}>
-        <Text style={styles.roleBadgeText}>{ROLE_LABELS[role] || role}</Text>
+        <Text style={styles.roleBadgeText}>
+          {role === "technician" && isDriverName(name) ? "Driver" : ROLE_LABELS[role] || role}
+        </Text>
       </View>
       <TouchableOpacity
         style={styles.settingsButton}
