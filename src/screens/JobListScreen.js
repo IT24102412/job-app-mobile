@@ -19,6 +19,7 @@ export default function JobListScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [role, setRole] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [jobTab, setJobTab] = useState("regional");
 
   const loadJobs = async () => {
     setLoading(true);
@@ -113,10 +114,37 @@ export default function JobListScreen({ navigation }) {
     );
   }
 
+  // Sales executives and admins see regional and workshop jobs in separate tabs
+  const showTabs = role === "sales_executive" || role === "admin";
+  const regionalCount = jobs.filter((j) => j.job_type !== "workshop").length;
+  const workshopCount = jobs.filter((j) => j.job_type === "workshop").length;
+  const shownJobs = showTabs
+    ? jobs.filter((j) => (jobTab === "workshop") === (j.job_type === "workshop"))
+    : jobs;
+
   return (
     <View style={styles.container}>
+      {showTabs && (
+        <View style={styles.tabRow}>
+          {[
+            { key: "regional", label: "Regional", count: regionalCount },
+            { key: "workshop", label: "Workshop", count: workshopCount },
+          ].map((t) => (
+            <TouchableOpacity
+              key={t.key}
+              style={[styles.tab, jobTab === t.key && styles.tabActive]}
+              onPress={() => setJobTab(t.key)}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.tabText, jobTab === t.key && styles.tabTextActive]}>
+                {t.label} ({t.count})
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
       <FlatList
-        data={jobs}
+        data={shownJobs}
         keyExtractor={(item) => item.id.toString()}
         onRefresh={loadJobs}
         refreshing={loading}
@@ -161,6 +189,25 @@ export default function JobListScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
+  tabRow: {
+    flexDirection: "row",
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.xs,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: "center",
+  },
+  tabActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  tabText: { color: colors.textSecondary, fontWeight: fontWeight.bold, fontSize: fontSize.sm },
+  tabTextActive: { color: colors.surface },
   container: { flex: 1, backgroundColor: colors.background },
   centered: { flex: 1, justifyContent: "center", alignItems: "center" },
   iconBadge: {
