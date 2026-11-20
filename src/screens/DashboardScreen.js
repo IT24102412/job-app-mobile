@@ -292,6 +292,11 @@ export default function DashboardScreen({ navigation }) {
           <Text style={styles.linkButtonText}>Workshop Trips</Text>
         </TouchableOpacity>
 
+        <TouchableOpacity style={styles.linkButton} onPress={() => navigation.navigate("Notifications")}>
+          <Ionicons name="notifications-outline" size={18} color={colors.primary} />
+          <Text style={styles.linkButtonText}>Notifications</Text>
+        </TouchableOpacity>
+
         <TouchableOpacity style={styles.linkButtonOutline} onPress={() => navigation.navigate("JobList")}>
           <Text style={styles.linkButtonOutlineText}>View All Jobs</Text>
         </TouchableOpacity>
