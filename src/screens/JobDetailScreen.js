@@ -215,6 +215,28 @@ export default function JobDetailScreen({ route, navigation }) {
     };
   }, [assignedTechs, job?.status]);
 
+  // Quietly re-check the job every 15 seconds while a technician has it open, so the timer
+  // stops by itself when an admin closes or cancels the job from another device.
+  useEffect(() => {
+    if (role !== "technician" || (job?.status !== "assigned" && job?.status !== "started")) {
+      return undefined;
+    }
+    const refreshQuietly = async () => {
+      try {
+        const response = await api.get("/jobs/");
+        const found = response.data.find((j) => j.id === jobId);
+        if (!found) return;
+        setJob(found);
+        const techsResponse = await api.get(`/jobs/${jobId}/assigned-technicians`);
+        setAssignedTechs(techsResponse.data);
+      } catch (error) {
+        console.log("Quiet refresh failed:", error.message);
+      }
+    };
+    const id = setInterval(refreshQuietly, 15000);
+    return () => clearInterval(id);
+  }, [role, job?.status, jobId]);
+
   const startTracking = async () => {
     if (trackingInterval.current) return;
 
