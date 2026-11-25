@@ -15,6 +15,7 @@ import ChangePasswordScreen from "./src/screens/ChangePasswordScreen";
 import ForgotPasswordScreen from "./src/screens/ForgotPasswordScreen";
 import WorkshopJobsScreen from "./src/screens/WorkshopJobsScreen";
 import TripsScreen from "./src/screens/TripsScreen";
+import WorkshopTeamScreen from "./src/screens/WorkshopTeamScreen";
 import { colors } from "./src/theme";
 
 const Stack = createNativeStackNavigator();
@@ -101,6 +102,11 @@ export default function App() {
           name="Trips"
           component={TripsScreen}
           options={{ title: "Workshop Trips" }}
+        />
+        <Stack.Screen
+          name="WorkshopTeam"
+          component={WorkshopTeamScreen}
+          options={{ title: "Workshop Team" }}
         />
       </Stack.Navigator>
     </NavigationContainer>

@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import {
   View,
   Text,
@@ -33,17 +33,23 @@ function tripProgress(trip) {
   return { label: "Scheduled", color: colors.warning, bg: colors.warningLight };
 }
 
-export default function TripsScreen({ navigation }) {
+export default function TripsScreen({ navigation, route }) {
   const [trips, setTrips] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState(null);
   const [busyId, setBusyId] = useState(null);
+  const filter = route?.params?.filter || null; // "open" | "today" | "upcoming" | null
+
+  useEffect(() => {
+    const titles = { open: "Open Trips", today: "Trips Today", upcoming: "Upcoming Trips" };
+    if (filter && titles[filter]) navigation.setOptions({ title: titles[filter] });
+  }, [filter]);
 
   const loadTrips = async () => {
     setLoading(true);
     try {
       const weekAgo = new Date();
-      weekAgo.setDate(weekAgo.getDate() - 7);
+      weekAgo.setDate(weekAgo.getDate() - (filter ? 60 : 7));
       const response = await api.get("/workshop/trips", { params: { date_from: toIso(weekAgo) } });
       setTrips(response.data);
     } catch (error) {
@@ -88,14 +94,30 @@ export default function TripsScreen({ navigation }) {
   };
 
   const today = toIso(new Date());
-  const sections = [
-    { title: "Today", data: trips.filter((t) => t.trip_date === today) },
-    {
-      title: "Upcoming",
-      data: trips.filter((t) => t.trip_date > today).sort((a, b) => (a.trip_date < b.trip_date ? -1 : 1)),
-    },
-    { title: "Recent", data: trips.filter((t) => t.trip_date < today) },
-  ].filter((s) => s.data.length > 0);
+  const isFinished = (t) => tripProgress(t).label === "Completed";
+  const upcomingList = trips.filter((t) => t.trip_date > today).sort((a, b) => (a.trip_date < b.trip_date ? -1 : 1));
+  const todayList = trips.filter((t) => t.trip_date === today);
+  // Planned for a past date but never finished
+  const overdueList = trips.filter((t) => t.trip_date < today && !isFinished(t));
+  const recentList = trips.filter((t) => t.trip_date < today && isFinished(t));
+
+  let allSections;
+  if (filter === "today") allSections = [{ title: "Today", data: todayList }];
+  else if (filter === "upcoming") allSections = [{ title: "Upcoming", data: upcomingList }];
+  else if (filter === "open")
+    allSections = [
+      { title: "Overdue (planned earlier, not finished)", data: overdueList },
+      { title: "Today", data: todayList.filter((t) => !isFinished(t)) },
+      { title: "Upcoming", data: upcomingList },
+    ];
+  else
+    allSections = [
+      { title: "Today", data: todayList },
+      { title: "Upcoming", data: upcomingList },
+      { title: "Overdue (planned earlier, not finished)", data: overdueList },
+      { title: "Recent", data: recentList },
+    ];
+  const sections = allSections.filter((s) => s.data.length > 0);
 
   if (loading && trips.length === 0) {
     return (
@@ -118,14 +140,15 @@ export default function TripsScreen({ navigation }) {
         renderItem={({ item: trip }) => {
           const progress = tripProgress(trip);
           const expanded = expandedId === trip.id;
+          const overdue = trip.trip_date < today && progress.label === "Scheduled";
           const canCancel = trip.jobs.length > 0 && trip.jobs.every((j) => j.status === "assigned");
           return (
             <View style={styles.card}>
               <TouchableOpacity onPress={() => setExpandedId(expanded ? null : trip.id)} activeOpacity={0.8}>
                 <View style={styles.cardHeader}>
                   <Text style={styles.tripDate}>{formatDay(trip.trip_date)}</Text>
-                  <View style={[styles.badge, { backgroundColor: progress.bg }]}>
-                    <Text style={[styles.badgeText, { color: progress.color }]}>{progress.label.toUpperCase()}</Text>
+                  <View style={[styles.badge, { backgroundColor: overdue ? colors.dangerLight || colors.warningLight : progress.bg }]}>
+                    <Text style={[styles.badgeText, { color: overdue ? colors.danger : progress.color }]}>{(overdue ? "Overdue" : progress.label).toUpperCase()}</Text>
                   </View>
                 </View>
                 <Text style={styles.summary}>
@@ -188,7 +211,7 @@ export default function TripsScreen({ navigation }) {
         ListEmptyComponent={
           <View style={styles.emptyBox}>
             <Ionicons name="car-outline" size={40} color={colors.textMuted} />
-            <Text style={styles.empty}>No trips yet.</Text>
+            <Text style={styles.empty}>{filter ? "No trips here." : "No trips yet."}</Text>
             <Text style={styles.emptySub}>Plan a trip from the Workshop Jobs list.</Text>
           </View>
         }

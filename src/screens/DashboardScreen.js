@@ -28,6 +28,18 @@ function todayIso() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+function daysAgoIso(n) {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+// A trip is finished when every job on it is closed or cancelled
+function tripIsFinished(t) {
+  const jobs = t.jobs || [];
+  return jobs.length > 0 && jobs.every((j) => j.status === "closed" || j.status === "cancelled");
+}
+
 function getGreeting() {
   const hour = new Date().getHours();
   if (hour < 12) return "Good morning";
@@ -97,7 +109,7 @@ export default function DashboardScreen({ navigation }) {
       if (r === "workshop_coordinator") {
         const [unscheduledRes, tripsRes, techRes] = await Promise.all([
           api.get("/workshop/unscheduled-jobs"),
-          api.get("/workshop/trips", { params: { date_from: todayIso() } }),
+          api.get("/workshop/trips", { params: { date_from: daysAgoIso(60) } }),
           api.get("/workshop/technicians", { params: { trip_date: todayIso() } }),
         ]);
         setUnscheduled(unscheduledRes.data);
@@ -149,15 +161,20 @@ export default function DashboardScreen({ navigation }) {
     </View>
   );
 
-  const StatCard = ({ icon, number, label, accent, accentLight, sub }) => (
-    <View style={[styles.statCard, { borderTopColor: accent }]}>
+  const StatCard = ({ icon, number, label, accent, accentLight, sub, onPress }) => (
+    <TouchableOpacity
+      style={[styles.statCard, { borderTopColor: accent }]}
+      onPress={onPress}
+      activeOpacity={onPress ? 0.7 : 1}
+      disabled={!onPress}
+    >
       <View style={[styles.statIconCircle, { backgroundColor: accentLight }]}>
         <Ionicons name={icon} size={18} color={accent} />
       </View>
       <Text style={styles.statNumber}>{number}</Text>
       <Text style={styles.statLabel}>{label}</Text>
       {sub ? <Text style={styles.statSub}>{sub}</Text> : null}
-    </View>
+    </TouchableOpacity>
   );
 
   // ---------- ADMIN DASHBOARD ----------
@@ -258,8 +275,10 @@ export default function DashboardScreen({ navigation }) {
   // ---------- WORKSHOP COORDINATOR DASHBOARD ----------
   if (role === "workshop_coordinator") {
     const today = todayIso();
-    const tripsToday = trips.filter((t) => t.trip_date === today).length;
-    const upcomingTrips = trips.filter((t) => t.trip_date > today).length;
+    const openTrips = trips.filter((t) => !tripIsFinished(t));
+    const tripsToday = openTrips.filter((t) => t.trip_date === today).length;
+    const upcomingTrips = openTrips.filter((t) => t.trip_date > today).length;
+    const overdueTrips = openTrips.filter((t) => t.trip_date < today).length;
     const workshopOnlyTechs = workshopTechs.filter((t) => !isDriverName(t.name));
     const workshopDrivers = workshopTechs.filter((t) => isDriverName(t.name));
     const freeTechs = workshopOnlyTechs.filter((t) => !t.busy).length;
@@ -271,16 +290,16 @@ export default function DashboardScreen({ navigation }) {
 
         <Text style={styles.sectionTitle}>Workshop</Text>
         <View style={styles.statsRow}>
-          <StatCard icon="file-tray-full" number={unscheduled.length} label="Waiting to Schedule" accent={colors.warning} accentLight={colors.warningLight} />
-          <StatCard icon="car" number={tripsToday} label="Trips Today" accent={colors.primary} accentLight={colors.primaryLight} />
+          <StatCard icon="file-tray-full" number={unscheduled.length} label="Waiting to Schedule" accent={colors.warning} accentLight={colors.warningLight} onPress={() => navigation.navigate("WorkshopJobs")} />
+          <StatCard icon="car" number={openTrips.length} label="Open Trips" sub={overdueTrips > 0 ? `${overdueTrips} overdue` : "all dates"} accent={colors.primary} accentLight={colors.primaryLight} onPress={() => navigation.navigate("Trips", { filter: "open" })} />
         </View>
         <View style={styles.statsRow}>
-          <StatCard icon="people" number={`${freeTechs}/${workshopOnlyTechs.length}`} label="Technicians Free" accent={colors.accentPurple} accentLight={colors.primaryLight} />
-          <StatCard icon="car-sport" number={`${freeDrivers}/${workshopDrivers.length}`} label="Drivers Free" accent={colors.accentOrange} accentLight={colors.warningLight} />
+          <StatCard icon="people" number={`${freeTechs}/${workshopOnlyTechs.length}`} label="Technicians Free" accent={colors.accentPurple} accentLight={colors.primaryLight} onPress={() => navigation.navigate("WorkshopTeam", { kind: "technicians" })} />
+          <StatCard icon="car-sport" number={`${freeDrivers}/${workshopDrivers.length}`} label="Drivers Free" accent={colors.accentOrange} accentLight={colors.warningLight} onPress={() => navigation.navigate("WorkshopTeam", { kind: "drivers" })} />
         </View>
         <View style={styles.statsRow}>
-          <StatCard icon="calendar" number={upcomingTrips} label="Upcoming Trips" accent={colors.accentTeal} accentLight={colors.accentTealLight} />
-          <View style={{ flex: 1 }} />
+          <StatCard icon="today" number={tripsToday} label="Trips Today" accent={colors.primary} accentLight={colors.primaryLight} onPress={() => navigation.navigate("Trips", { filter: "today" })} />
+          <StatCard icon="calendar" number={upcomingTrips} label="Upcoming Trips" accent={colors.accentTeal} accentLight={colors.accentTealLight} onPress={() => navigation.navigate("Trips", { filter: "upcoming" })} />
         </View>
 
         <TouchableOpacity style={styles.linkButton} onPress={() => navigation.navigate("WorkshopJobs")}>
