@@ -114,12 +114,15 @@ export default function JobListScreen({ navigation }) {
     );
   }
 
-  // Sales executives and admins see regional and workshop jobs in separate tabs
-  const showTabs = role === "sales_executive" || role === "admin";
+  // Sales executives see regional and workshop jobs in separate tabs;
+  // the admin works with regional jobs only
+  const showTabs = role === "sales_executive";
   const regionalCount = jobs.filter((j) => j.job_type !== "workshop").length;
   const workshopCount = jobs.filter((j) => j.job_type === "workshop").length;
   const shownJobs = showTabs
     ? jobs.filter((j) => (jobTab === "workshop") === (j.job_type === "workshop"))
+    : role === "admin"
+    ? jobs.filter((j) => j.job_type !== "workshop")
     : jobs;
 
   return (
