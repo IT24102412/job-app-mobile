@@ -32,8 +32,9 @@ const WORKSHOP_SERVICE_TYPES = ["service", "inspection", "electrical_repair", "m
 const WORKSHOP_REQUEST_TYPES = {
   service: ["AMC", "PM"],
   inspection: ["AMC", "FOC"],
-  electrical_repair: ["FOC", "SR"],
-  mechanical_repair: ["FOC", "SR"],
+  // Repairs have no type; the single value only gives the job number its prefix
+  electrical_repair: ["ER"],
+  mechanical_repair: ["MR"],
 };
 const SERVICE_LABELS = {
   breakdown: "Breakdown",
@@ -383,8 +384,12 @@ export default function CreateJobScreen({ navigation }) {
       <Text style={styles.label}>Service Type</Text>
       <PillPicker options={serviceOptions} selected={serviceType} onSelect={setServiceType} labels={SERVICE_LABELS} />
 
-      <Text style={styles.label}>{isWorkshop ? "Type" : "Request Type"}</Text>
-      <PillPicker options={requestOptions} selected={requestType} onSelect={setRequestType} />
+      {requestOptions.length > 1 && (
+        <>
+          <Text style={styles.label}>{isWorkshop ? "Type" : "Request Type"}</Text>
+          <PillPicker options={requestOptions} selected={requestType} onSelect={setRequestType} />
+        </>
+      )}
       <Text style={styles.refNoHint}>
         REF NO will be generated automatically (e.g. {isWorkshop ? "WS-" : ""}{requestType}-{isWorkshop ? "000001" : "000123"}) once created.
       </Text>
