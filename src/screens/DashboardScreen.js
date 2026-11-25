@@ -79,7 +79,8 @@ export default function DashboardScreen({ navigation }) {
       setName(n);
 
       const jobsRes = await api.get("/jobs/");
-      setJobs(jobsRes.data);
+      // The admin dashboard is for regional jobs only; workshop jobs belong to the coordinator
+      setJobs(r === "admin" ? jobsRes.data.filter((j) => j.job_type !== "workshop") : jobsRes.data);
 
       if (r === "admin") {
         const [techRes, activityRes, centersRes] = await Promise.all([

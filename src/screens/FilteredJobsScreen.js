@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import api from "../api/client";
+import { getCurrentUserRole } from "../api/auth";
 import { colors, statusColors, spacing, radius, fontSize, fontWeight, shadow } from "../theme";
 
 export default function FilteredJobsScreen({ route, navigation }) {
@@ -24,7 +25,13 @@ export default function FilteredJobsScreen({ route, navigation }) {
     setLoading(true);
     try {
       const response = await api.get("/jobs/", { params });
-      setJobs(response.data);
+      const currentRole = await getCurrentUserRole();
+      // Admin's dashboard and reports cover regional jobs only
+      setJobs(
+        currentRole === "admin"
+          ? response.data.filter((j) => j.job_type !== "workshop")
+          : response.data
+      );
     } catch (error) {
       console.log("Failed to load filtered jobs:", error.message);
     } finally {
