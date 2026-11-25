@@ -21,9 +21,27 @@ import { showAlert } from "../utils/notify";
 import { getCurrentUserId } from "../api/auth";
 import { colors, spacing, radius, fontSize, fontWeight, shadow } from "../theme";
 
-const REQUEST_TYPES = ["FOC", "SR"];
 const JOB_TYPES = ["workshop", "regional"];
-const SERVICE_TYPES = ["breakdown", "service", "inspection"];
+
+// Regional jobs keep the original choices
+const REGIONAL_REQUEST_TYPES = ["FOC", "SR"];
+const REGIONAL_SERVICE_TYPES = ["breakdown", "service", "inspection"];
+
+// Workshop jobs: four service types, each with its own set of types
+const WORKSHOP_SERVICE_TYPES = ["service", "inspection", "electrical_repair", "mechanical_repair"];
+const WORKSHOP_REQUEST_TYPES = {
+  service: ["AMC", "PM"],
+  inspection: ["AMC", "FOC"],
+  electrical_repair: ["FOC", "SR"],
+  mechanical_repair: ["FOC", "SR"],
+};
+const SERVICE_LABELS = {
+  breakdown: "Breakdown",
+  service: "Service",
+  inspection: "Inspection",
+  electrical_repair: "Electrical Repairs",
+  mechanical_repair: "Mechanical Repairs",
+};
 
 export default function CreateJobScreen({ navigation }) {
   const [requestType, setRequestType] = useState("FOC");
@@ -299,7 +317,25 @@ export default function CreateJobScreen({ navigation }) {
     }
   };
 
-  const PillPicker = ({ options, selected, onSelect }) => (
+  const isWorkshop = jobType === "workshop";
+  const serviceOptions = isWorkshop ? WORKSHOP_SERVICE_TYPES : REGIONAL_SERVICE_TYPES;
+  const requestOptions = isWorkshop
+    ? WORKSHOP_REQUEST_TYPES[serviceType] || ["FOC", "SR"]
+    : REGIONAL_REQUEST_TYPES;
+
+  // Keep the choices valid when the job allocation or service type changes
+  useEffect(() => {
+    if (!serviceOptions.includes(serviceType)) {
+      setServiceType(serviceOptions[0]);
+    }
+  }, [jobType]);
+  useEffect(() => {
+    if (!requestOptions.includes(requestType)) {
+      setRequestType(requestOptions[0]);
+    }
+  }, [jobType, serviceType]);
+
+  const PillPicker = ({ options, selected, onSelect, labels }) => (
     <View style={styles.pillRow}>
       {options.map((opt) => (
         <TouchableOpacity
@@ -308,7 +344,7 @@ export default function CreateJobScreen({ navigation }) {
           onPress={() => onSelect(opt)}
         >
           <Text style={[styles.pillText, selected === opt && styles.pillTextActive]}>
-            {opt}
+            {labels ? labels[opt] || opt : opt}
           </Text>
         </TouchableOpacity>
       ))}
@@ -341,17 +377,17 @@ export default function CreateJobScreen({ navigation }) {
 
   return (
     <ScrollView style={styles.container}>
-      <Text style={styles.label}>Request Type</Text>
-      <PillPicker options={REQUEST_TYPES} selected={requestType} onSelect={setRequestType} />
-      <Text style={styles.refNoHint}>
-        REF NO will be generated automatically (e.g. {requestType}-000123) once created.
-      </Text>
-
       <Text style={styles.label}>Job Allocation</Text>
       <PillPicker options={JOB_TYPES} selected={jobType} onSelect={setJobType} />
 
       <Text style={styles.label}>Service Type</Text>
-      <PillPicker options={SERVICE_TYPES} selected={serviceType} onSelect={setServiceType} />
+      <PillPicker options={serviceOptions} selected={serviceType} onSelect={setServiceType} labels={SERVICE_LABELS} />
+
+      <Text style={styles.label}>{isWorkshop ? "Type" : "Request Type"}</Text>
+      <PillPicker options={requestOptions} selected={requestType} onSelect={setRequestType} />
+      <Text style={styles.refNoHint}>
+        REF NO will be generated automatically (e.g. {isWorkshop ? "WS-" : ""}{requestType}-{isWorkshop ? "000001" : "000123"}) once created.
+      </Text>
 
       <Text style={styles.label}>Remarks (optional)</Text>
       <TextInput
