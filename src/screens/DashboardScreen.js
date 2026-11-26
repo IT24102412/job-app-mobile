@@ -10,6 +10,7 @@ import {
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import api from "../api/client";
+import { syncTracking } from "../utils/tracking";
 import { getCurrentUserId, getCurrentUserRole, getCurrentUserName } from "../api/auth";
 import { colors, statusColors, spacing, radius, fontSize, fontWeight, shadow } from "../theme";
 
@@ -91,6 +92,8 @@ export default function DashboardScreen({ navigation }) {
       setName(n);
 
       const jobsRes = await api.get("/jobs/");
+      // Technicians and drivers share location while a job is in progress; the server decides
+      if (r === "technician") syncTracking();
       // The admin dashboard is for regional jobs only; workshop jobs belong to the coordinator
       setJobs(r === "admin" ? jobsRes.data.filter((j) => j.job_type !== "workshop") : jobsRes.data);
 
@@ -237,6 +240,11 @@ export default function DashboardScreen({ navigation }) {
           <Text style={styles.linkButtonText}>View Daily Technician Report</Text>
         </TouchableOpacity>
 
+        <TouchableOpacity style={styles.linkButton} onPress={() => navigation.navigate("LiveMap")}>
+          <Ionicons name="location-outline" size={18} color={colors.primary} />
+          <Text style={styles.linkButtonText}>Live Technician Map</Text>
+        </TouchableOpacity>
+
         <TouchableOpacity style={styles.linkButton} onPress={() => navigation.navigate("Activity")}>
           <Ionicons name="pulse" size={18} color={colors.primary} />
           <Text style={styles.linkButtonText}>View Recent Activity</Text>
@@ -289,6 +297,11 @@ export default function DashboardScreen({ navigation }) {
           <Text style={styles.linkButtonText}>Workshop Trips</Text>
         </TouchableOpacity>
 
+        <TouchableOpacity style={styles.linkButton} onPress={() => navigation.navigate("LiveMap")}>
+          <Ionicons name="location-outline" size={18} color={colors.primary} />
+          <Text style={styles.linkButtonText}>Live Team Map</Text>
+        </TouchableOpacity>
+
         <TouchableOpacity style={styles.linkButton} onPress={() => navigation.navigate("Notifications")}>
           <Ionicons name="notifications-outline" size={18} color={colors.primary} />
           <Text style={styles.linkButtonText}>Notifications</Text>
@@ -326,6 +339,9 @@ export default function DashboardScreen({ navigation }) {
         <Header />
 
         <Text style={styles.sectionTitle}>Your Day</Text>
+        <Text style={styles.trackingNote}>
+          Your location is shared with the office only while a job is in progress.
+        </Text>
 
         {activeJob ? (
           <TouchableOpacity
@@ -477,6 +493,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
     marginBottom: spacing.sm,
   },
+  trackingNote: { marginHorizontal: spacing.lg, marginBottom: spacing.sm, color: colors.textMuted, fontSize: fontSize.xs },
   statsRow: { flexDirection: "row", gap: spacing.md, marginBottom: spacing.md },
   statCard: {
     flex: 1,

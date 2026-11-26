@@ -16,6 +16,9 @@ import ForgotPasswordScreen from "./src/screens/ForgotPasswordScreen";
 import WorkshopJobsScreen from "./src/screens/WorkshopJobsScreen";
 import TripsScreen from "./src/screens/TripsScreen";
 import WorkshopTeamScreen from "./src/screens/WorkshopTeamScreen";
+import LiveMapScreen from "./src/screens/LiveMapScreen";
+// Registers the background location task as soon as the app starts (Android app only)
+import "./src/utils/tracking";
 import { colors } from "./src/theme";
 
 const Stack = createNativeStackNavigator();
@@ -107,6 +110,11 @@ export default function App() {
           name="WorkshopTeam"
           component={WorkshopTeamScreen}
           options={{ title: "Workshop Team" }}
+        />
+        <Stack.Screen
+          name="LiveMap"
+          component={LiveMapScreen}
+          options={{ title: "Live Locations" }}
         />
       </Stack.Navigator>
     </NavigationContainer>

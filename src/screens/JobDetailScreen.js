@@ -20,6 +20,7 @@ import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
 import { WebView } from "react-native-webview";
 import api from "../api/client";
+import { syncTracking } from "../utils/tracking";
 import { getCurrentUserRole, getCurrentUserId } from "../api/auth";
 import { colors, statusColors, spacing, radius, fontSize, fontWeight, shadow } from "../theme";
 
@@ -322,6 +323,7 @@ export default function JobDetailScreen({ route, navigation }) {
     try {
       await api.post(`/jobs/${jobId}/start`);
       showAlert("Job started", "You can now begin working on this job.");
+      syncTracking(); // start sharing location in the background (Android app)
       loadJob();
     } catch (error) {
       const detail = error.response?.data?.detail || "Something went wrong.";
@@ -362,6 +364,7 @@ export default function JobDetailScreen({ route, navigation }) {
       }
 
       showAlert("Success", "Job sheet uploaded. Job is now closed.");
+      syncTracking(); // stop sharing when no job is in progress
       loadJob();
     } catch (error) {
       const detail = error.response?.data?.detail || "Upload failed.";

@@ -28,6 +28,15 @@
           "microphonePermission": "Allow Job Tracker to use the microphone.",
           "speechRecognitionPermission": "Allow Job Tracker to use speech recognition."
         }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Job Tracker shares your location with the office while a job is in progress.",
+          "locationWhenInUsePermission": "Job Tracker uses your location for the job you are working on.",
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
+        }
       ]
     ],
     "extra": {
