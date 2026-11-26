@@ -190,6 +190,7 @@ export default function DashboardScreen({ navigation }) {
     const closedToday = jobs.filter(
       (j) => j.status === "closed" && j.closed_at && isToday(j.closed_at)
     ).length;
+    const closedAll = jobs.filter((j) => j.status === "closed").length;
     const regionalTechs = technicians.filter((t) => t.regional_center_id !== workshopCenterId);
     const regionalAvailable = regionalTechs.filter((t) => t.is_available).length;
 
@@ -197,14 +198,14 @@ export default function DashboardScreen({ navigation }) {
       <ScrollView style={styles.container}>
         <Header />
 
-        <Text style={styles.sectionTitle}>Today</Text>
+        <Text style={styles.sectionTitle}>Jobs</Text>
         <View style={styles.statsRow}>
-          <StatCard icon="briefcase" number={todaysJobs.length} label="Jobs Today" accent={colors.primary} accentLight={colors.primaryLight} />
-          <StatCard icon="hourglass" number={pending} label="Pending" sub={pendingEarlier > 0 ? `${pendingEarlier} from earlier days` : null} accent={colors.warning} accentLight={colors.warningLight} />
+          <StatCard icon="briefcase" number={jobs.length} label="All Jobs" sub={`${todaysJobs.length} created today`} accent={colors.primary} accentLight={colors.primaryLight} onPress={() => navigation.navigate("FilteredJobs", { title: "All Jobs", params: {} })} />
+          <StatCard icon="hourglass" number={pending} label="Pending" sub={pendingEarlier > 0 ? `${pendingEarlier} from earlier days` : null} accent={colors.warning} accentLight={colors.warningLight} onPress={() => navigation.navigate("FilteredJobs", { title: "Pending Jobs", params: {}, statuses: ["created", "assigned"] })} />
         </View>
         <View style={styles.statsRow}>
-          <StatCard icon="play" number={inProgress} label="In Progress" sub={inProgressEarlier > 0 ? `${inProgressEarlier} from earlier days` : null} accent={colors.accentTeal} accentLight={colors.accentTealLight} />
-          <StatCard icon="checkmark-circle" number={closedToday} label="Closed Today" accent={colors.success} accentLight={colors.successLight} />
+          <StatCard icon="play" number={inProgress} label="In Progress" sub={inProgressEarlier > 0 ? `${inProgressEarlier} from earlier days` : null} accent={colors.accentTeal} accentLight={colors.accentTealLight} onPress={() => navigation.navigate("FilteredJobs", { title: "In Progress Jobs", params: {}, statuses: ["started"] })} />
+          <StatCard icon="checkmark-circle" number={closedAll} label="Closed" sub={`${closedToday} closed today`} accent={colors.success} accentLight={colors.successLight} onPress={() => navigation.navigate("FilteredJobs", { title: "Closed Jobs", params: {}, statuses: ["closed"] })} />
         </View>
 
         <View style={styles.card}>

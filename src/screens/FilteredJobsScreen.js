@@ -12,7 +12,7 @@ import { getCurrentUserRole } from "../api/auth";
 import { colors, statusColors, spacing, radius, fontSize, fontWeight, shadow } from "../theme";
 
 export default function FilteredJobsScreen({ route, navigation }) {
-  const { title, params } = route.params;
+  const { title, params, statuses } = route.params;
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -27,11 +27,11 @@ export default function FilteredJobsScreen({ route, navigation }) {
       const response = await api.get("/jobs/", { params });
       const currentRole = await getCurrentUserRole();
       // Admin's dashboard and reports cover regional jobs only
-      setJobs(
-        currentRole === "admin"
-          ? response.data.filter((j) => j.job_type !== "workshop")
-          : response.data
-      );
+      let list = currentRole === "admin" ? response.data.filter((j) => j.job_type !== "workshop") : response.data;
+      // Dashboard cards can ask for several statuses at once (e.g. Pending = created + assigned)
+      if (statuses && statuses.length > 0) list = list.filter((j) => statuses.includes(j.status));
+      // Newest first
+      setJobs([...list].sort((a, b) => b.id - a.id));
     } catch (error) {
       console.log("Failed to load filtered jobs:", error.message);
     } finally {
