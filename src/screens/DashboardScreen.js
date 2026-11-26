@@ -227,35 +227,6 @@ export default function DashboardScreen({ navigation }) {
 
         </View>
 
-        <TouchableOpacity
-          style={styles.card}
-          onPress={() => navigation.navigate("Activity")}
-          activeOpacity={0.7}
-        >
-          <View style={styles.cardTitleRow}>
-            <Ionicons name="pulse" size={18} color={colors.accentOrange} />
-            <Text style={styles.cardTitle}>Recent Activity</Text>
-            <Ionicons name="chevron-forward" size={18} color={colors.textMuted} style={{ marginLeft: "auto" }} />
-          </View>
-          {activity.length === 0 ? (
-            <Text style={styles.emptyText}>No recent activity.</Text>
-          ) : (
-            activity.slice(0, 3).map((item) => (
-              <View key={item.id} style={styles.activityRow}>
-                <Ionicons
-                  name={item.recipient_admin_id ? "document-attach-outline" : "person-add-outline"}
-                  size={14}
-                  color={colors.textSecondary}
-                />
-                <Text style={styles.activityMessageCompact} numberOfLines={1}>
-                  {item.message}
-                </Text>
-              </View>
-            ))
-          )}
-          <Text style={styles.viewAllText}>Tap to view all activity</Text>
-        </TouchableOpacity>
-
         <TouchableOpacity style={styles.linkButton} onPress={() => navigation.navigate("Reports")}>
           <Ionicons name="stats-chart" size={18} color={colors.primary} />
           <Text style={styles.linkButtonText}>View Monthly Report</Text>
@@ -264,6 +235,11 @@ export default function DashboardScreen({ navigation }) {
         <TouchableOpacity style={styles.linkButton} onPress={() => navigation.navigate("DailyReport")}>
           <Ionicons name="calendar-outline" size={18} color={colors.primary} />
           <Text style={styles.linkButtonText}>View Daily Technician Report</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.linkButton} onPress={() => navigation.navigate("Activity")}>
+          <Ionicons name="pulse" size={18} color={colors.primary} />
+          <Text style={styles.linkButtonText}>View Recent Activity</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.linkButtonOutline} onPress={() => navigation.navigate("JobList")}>
