@@ -37,6 +37,13 @@
           "isAndroidBackgroundLocationEnabled": true,
           "isAndroidForegroundServiceEnabled": true
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Job Tracker uses the camera to photograph the Service Request.",
+          "photosPermission": "Job Tracker lets you choose a Service Request photo from your gallery."
+        }
       ]
     ],
     "extra": {

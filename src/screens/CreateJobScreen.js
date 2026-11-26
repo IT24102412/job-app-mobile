@@ -11,10 +11,12 @@ import {
   Modal,
   FlatList,
   Platform,
+  Image,
 } from "react-native";
 import { Picker } from "@react-native-picker/picker";
 import { Ionicons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
+import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
 import api from "../api/client";
 import { showAlert } from "../utils/notify";
@@ -127,6 +129,36 @@ export default function CreateJobScreen({ navigation }) {
 
     if (result.canceled) return;
     setSrAttachment(result.assets[0]);
+  };
+
+  // Take a photo of the Service Request with the camera and attach it straight away
+  const handleTakePhoto = async () => {
+    try {
+      if (Platform.OS !== "web") {
+        const perm = await ImagePicker.requestCameraPermissionsAsync();
+        if (perm.status !== "granted") {
+          showAlert("Camera permission needed", "Please allow camera access in your phone settings to photograph the SR.");
+          return;
+        }
+      }
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ["images"],
+        quality: 0.6, // keeps the photo small enough to upload quickly (limit is 8 MB)
+        allowsEditing: false,
+      });
+      if (result.canceled || !result.assets || result.assets.length === 0) return;
+      const photo = result.assets[0];
+      setSrAttachment({
+        uri: photo.uri,
+        file: photo.file, // used by the web version
+        name: `SR-photo-${Date.now()}.jpg`,
+        mimeType: "image/jpeg",
+        isPhoto: true,
+      });
+    } catch (error) {
+      console.log("Camera failed:", error.message);
+      showAlert("Could not open the camera", "Please try again, or use Choose File instead.");
+    }
   };
 
   const openAddCustomer = () => {
@@ -408,30 +440,32 @@ export default function CreateJobScreen({ navigation }) {
       <Text style={styles.charCount}>{remarks.length}/500</Text>
 
       <Text style={styles.label}>SR Attachment (optional)</Text>
-      <TouchableOpacity
-        style={styles.attachmentButton}
-        onPress={handlePickAttachment}
-        activeOpacity={0.7}
-      >
-        <Ionicons
-          name={srAttachment ? "document-attach" : "attach-outline"}
-          size={20}
-          color={srAttachment ? colors.success : colors.textSecondary}
-        />
-        <Text
-          style={[
-            styles.attachmentButtonText,
-            srAttachment && styles.attachmentButtonTextSelected,
-          ]}
-        >
-          {srAttachment ? srAttachment.name : "Attach Service Request (PDF or image) - optional"}
-        </Text>
-        {srAttachment && (
+      {srAttachment ? (
+        <View style={styles.attachmentButton}>
+          {srAttachment.isPhoto || (srAttachment.mimeType || "").startsWith("image/") ? (
+            <Image source={{ uri: srAttachment.uri }} style={styles.attachmentThumb} />
+          ) : (
+            <Ionicons name="document-attach" size={20} color={colors.success} />
+          )}
+          <Text style={[styles.attachmentButtonText, styles.attachmentButtonTextSelected]} numberOfLines={1}>
+            {srAttachment.name}
+          </Text>
           <TouchableOpacity onPress={() => setSrAttachment(null)}>
-            <Ionicons name="close-circle" size={20} color={colors.textMuted} />
+            <Ionicons name="close-circle" size={22} color={colors.textMuted} />
           </TouchableOpacity>
-        )}
-      </TouchableOpacity>
+        </View>
+      ) : (
+        <View style={styles.attachRow}>
+          <TouchableOpacity style={[styles.attachmentButton, { flex: 1 }]} onPress={handleTakePhoto} activeOpacity={0.7}>
+            <Ionicons name="camera-outline" size={20} color={colors.primary} />
+            <Text style={[styles.attachmentButtonText, { color: colors.primary, fontWeight: fontWeight.semibold }]}>Take Photo</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.attachmentButton, { flex: 1 }]} onPress={handlePickAttachment} activeOpacity={0.7}>
+            <Ionicons name="attach-outline" size={20} color={colors.textSecondary} />
+            <Text style={styles.attachmentButtonText}>Choose File</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       <Text style={styles.label}>Customer</Text>
       <TouchableOpacity
@@ -700,6 +734,8 @@ const styles = StyleSheet.create({
     borderColor: colors.danger,
     backgroundColor: colors.dangerLight,
   },
+  attachRow: { flexDirection: "row", gap: spacing.sm },
+  attachmentThumb: { width: 36, height: 36, borderRadius: 6, backgroundColor: colors.border },
   attachmentButtonText: { color: colors.textSecondary, fontSize: fontSize.base, flex: 1 },
   attachmentButtonTextSelected: { color: colors.textPrimary, fontWeight: fontWeight.semibold },
   attachmentButtonTextRequired: { color: colors.dangerDark, fontWeight: fontWeight.semibold },
