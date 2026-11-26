@@ -12,7 +12,7 @@ import { getCurrentUserRole } from "../api/auth";
 import { colors, statusColors, spacing, radius, fontSize, fontWeight, shadow } from "../theme";
 
 export default function FilteredJobsScreen({ route, navigation }) {
-  const { title, params, statuses } = route.params;
+  const { title, params, statuses, onlyToday } = route.params;
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -30,6 +30,18 @@ export default function FilteredJobsScreen({ route, navigation }) {
       let list = currentRole === "admin" ? response.data.filter((j) => j.job_type !== "workshop") : response.data;
       // Dashboard cards can ask for several statuses at once (e.g. Pending = created + assigned)
       if (statuses && statuses.length > 0) list = list.filter((j) => statuses.includes(j.status));
+      // "Jobs Today": only jobs created today
+      if (onlyToday) {
+        const now = new Date();
+        list = list.filter((j) => {
+          const d = new Date(j.created_at + "Z");
+          return (
+            d.getFullYear() === now.getFullYear() &&
+            d.getMonth() === now.getMonth() &&
+            d.getDate() === now.getDate()
+          );
+        });
+      }
       // Newest first
       setJobs([...list].sort((a, b) => b.id - a.id));
     } catch (error) {

@@ -200,7 +200,7 @@ export default function DashboardScreen({ navigation }) {
 
         <Text style={styles.sectionTitle}>Jobs</Text>
         <View style={styles.statsRow}>
-          <StatCard icon="briefcase" number={jobs.length} label="All Jobs" sub={`${todaysJobs.length} created today`} accent={colors.primary} accentLight={colors.primaryLight} onPress={() => navigation.navigate("FilteredJobs", { title: "All Jobs", params: {} })} />
+          <StatCard icon="briefcase" number={todaysJobs.length} label="Jobs Today" accent={colors.primary} accentLight={colors.primaryLight} onPress={() => navigation.navigate("FilteredJobs", { title: "Jobs Today", params: {}, onlyToday: true })} />
           <StatCard icon="hourglass" number={pending} label="Pending" sub={pendingEarlier > 0 ? `${pendingEarlier} from earlier days` : null} accent={colors.warning} accentLight={colors.warningLight} onPress={() => navigation.navigate("FilteredJobs", { title: "Pending Jobs", params: {}, statuses: ["created", "assigned"] })} />
         </View>
         <View style={styles.statsRow}>
