@@ -11,6 +11,11 @@ import api from "../api/client";
 import { getCurrentUserRole } from "../api/auth";
 import { colors, statusColors, spacing, radius, fontSize, fontWeight, shadow } from "../theme";
 
+const formatDate = (iso) =>
+  iso
+    ? new Date(iso + "Z").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
+    : "";
+
 export default function FilteredJobsScreen({ route, navigation }) {
   const { title, params, statuses, onlyToday } = route.params;
   const [jobs, setJobs] = useState([]);
@@ -82,6 +87,10 @@ export default function FilteredJobsScreen({ route, navigation }) {
               <Text style={styles.detail}>
                 {item.job_type} · {item.service_type}
               </Text>
+              <Text style={styles.dateText}>
+                Created {formatDate(item.created_at)}
+                {item.status === "closed" && item.closed_at ? `  ·  Closed ${formatDate(item.closed_at)}` : ""}
+              </Text>
             </TouchableOpacity>
           );
         }}
@@ -115,5 +124,6 @@ const styles = StyleSheet.create({
   },
   badgeText: { fontSize: fontSize.xs, fontWeight: fontWeight.bold },
   detail: { color: colors.textSecondary, marginTop: spacing.xs, fontSize: fontSize.base },
+  dateText: { color: colors.textMuted, marginTop: 2, fontSize: fontSize.sm },
   empty: { textAlign: "center", marginTop: 40, color: colors.textMuted },
 });
